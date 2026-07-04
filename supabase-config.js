@@ -27,5 +27,5 @@ window.SUPABASE_CONFIG = {
   // Para SUBIR fotos desde la app necesitas un OAuth Client ID de Google
   // (tipo "Web application", scope drive.file). Ver PHOTOS.md.
   // Si lo dejas vacío, la Galería funciona en modo "pegar enlace de Drive".
-  GOOGLE_CLIENT_ID: ''
+  GOOGLE_CLIENT_ID: '835915710116-ae84q6hbvda02udi1lbrtj9g7kka1his.apps.googleusercontent.com'
 };
