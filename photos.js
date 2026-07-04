@@ -17,6 +17,9 @@ const EmmaPhotos = (function () {
   // Acceso completo a Drive: permite subir a TU carpeta pre-creada (no solo a las que
   // crea la app). Viable sin verificación de Google porque el OAuth es "Interno".
   const SCOPE = 'https://www.googleapis.com/auth/drive openid email profile';
+  const SUPA_URL = CFG.SUPABASE_URL || '';
+  const SUPA_ANON = CFG.SUPABASE_ANON_KEY || '';
+  const FN_URL = SUPA_URL ? (SUPA_URL.replace(/\/$/, '') + '/functions/v1/drive-token') : '';
   const MAX_W = 1600;
 
   let token = null, tokenExp = 0, email = '', tokenClient = null, gisReady = false, consented = false;
@@ -65,28 +68,37 @@ const EmmaPhotos = (function () {
     });
   }
 
-  // Pide un token a Google. prompt:'' = SIN interacción (silencioso, si ya consentiste);
-  // prompt:'consent' = muestra el diálogo de permisos (requiere gesto del usuario).
-  function requestToken(prompt) {
+  // Llama a la Edge Function drive-token (guarda/renueva el refresh_token del lado del servidor).
+  async function _fn(action, extra) {
+    if (!FN_URL) throw new Error('Falta configurar Supabase para Google Drive.');
+    const jwt = (window.EmmaSync && EmmaSync.accessToken && EmmaSync.accessToken()) || '';
+    if (!jwt) { const e = new Error('Inicia sesión para conectar Google Drive.'); e.code = 'no_login'; throw e; }
+    const r = await fetch(FN_URL, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwt, 'apikey': SUPA_ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ action: action }, extra || {})),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(d.error || ('drive-token ' + r.status)); e.code = d.error; throw e; }
+    return d;
+  }
+
+  // Abre el popup de Google y devuelve un "authorization code" para canjearlo por refresh_token en el backend.
+  let codeClient = null;
+  function _getCode() {
     return loadGIS().then(() => new Promise((resolve, reject) => {
       let done = false; const fin = (fn, a) => { if (!done) { done = true; fn(a); } };
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID, scope: SCOPE,
-        callback: (resp) => {
-          if (resp && resp.access_token) {
-            token = resp.access_token; tokenExp = Date.now() + (resp.expires_in || 3600) * 1000; consented = true; _persist();
-            fetchEmail().then(e => { email = e; _persist(); }).catch(() => {});
-            fin(resolve, token);
-            setTimeout(() => { try { flushQueue(); } catch (e) {} }, 500); // sube pendientes al reconectar
-          } else { fin(reject, new Error((resp && resp.error) || 'sin_token')); }
-        },
-        error_callback: (err) => fin(reject, new Error((err && err.type) || 'oauth_error'))
+      codeClient = google.accounts.oauth2.initCodeClient({
+        client_id: CLIENT_ID, scope: SCOPE, ux_mode: 'popup',
+        callback: (resp) => { if (resp && resp.code) fin(resolve, resp.code); else fin(reject, new Error((resp && resp.error) || 'sin_code')); },
+        error_callback: (err) => fin(reject, new Error((err && err.type) || 'oauth_error')),
       });
       setTimeout(() => fin(reject, new Error('timeout')), 90000);
-      tokenClient.requestAccessToken({ prompt: prompt });
+      codeClient.requestCode();
     }));
   }
-  // Conexión iniciada por el usuario (botón). Si ya consentiste, intenta silencioso; si no, pide consent.
+  // Conexión iniciada por el usuario (botón). Popup de Google → code → el backend guarda el refresh_token.
+  // Con eso, conectas UNA sola vez: después el acceso se renueva solo (sin popup ni reconexiones).
   async function connect(onState) {
     onState = onState || function () {};
     if (!CLIENT_ID) { const m = 'Falta GOOGLE_CLIENT_ID (ver PHOTOS.md)'; _toast(m); throw new Error(m); }
@@ -95,13 +107,15 @@ const EmmaPhotos = (function () {
     let listo = false;
     const aviso = setTimeout(() => { if (!listo) _toast('No se abrió la ventana de Google (¿pop-ups bloqueados?)'); }, 8000);
     try {
-      let tok = null;
-      if (consented) { try { tok = await requestToken(''); } catch (e) { /* silencioso falló → pedir consent */ } }
-      if (!tok) tok = await requestToken('consent');
+      const code = await _getCode();                                        // popup → authorization code
       listo = true; clearTimeout(aviso);
+      onState('Guardando conexión…');
+      const d = await _fn('exchange', { code: code, redirect_uri: 'postmessage' });  // backend guarda el refresh_token
+      token = d.access_token; tokenExp = Date.now() + ((d.expires_in || 3600) * 1000); consented = true; _persist();
+      fetchEmail().then(e => { email = e; _persist(); }).catch(() => {});
       onState('Google Drive conectado ✓');
       setTimeout(() => { try { flushQueue(); } catch (e) {} }, 300); // reintenta la última subida pendiente
-      return tok;
+      return token;
     } catch (e) {
       listo = true; clearTimeout(aviso);
       throw new Error(errMsg(e)); // el caller muestra el toast (evita duplicar)
@@ -109,14 +123,25 @@ const EmmaPhotos = (function () {
   }
   function disconnect() {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch (e) {}
+    try { _fn('disconnect').catch(() => {}); } catch (e) {} // borra el refresh_token guardado en el backend
     token = null; tokenExp = 0; email = ''; consented = false;
     try { localStorage.removeItem(LS_DRIVE); } catch (e) {}
     Object.values(thumbCache).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
   }
-  // Garantiza un token válido SIN molestar: si caducó pero ya consentiste, lo renueva en silencio.
+  // Garantiza un access_token válido SIN molestar: si caducó pero ya conectaste, el backend lo
+  // renueva con el refresh_token guardado (sin popup). Solo pide reconectar si el refresh fue revocado.
   async function ensureToken() {
     if (isConnected()) return token;
-    if (consented) { try { return await requestToken(''); } catch (e) {} }
+    if (consented) {
+      try {
+        const d = await _fn('refresh');
+        token = d.access_token; tokenExp = Date.now() + ((d.expires_in || 3600) * 1000); _persist();
+        return token;
+      } catch (e) {
+        if (e.code === 'invalid_grant' || e.code === 'no_refresh_token') { consented = false; _persist(); }
+        throw new Error('Conecta Google Drive primero');
+      }
+    }
     throw new Error('Conecta Google Drive primero');
   }
   async function fetchEmail() {
