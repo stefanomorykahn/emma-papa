@@ -11,6 +11,7 @@
 
 # 2) Permitir SOLO los archivos de la app:
 !/.gitignore
+!/.nojekyll
 !/index.html
 !/emma-perfil.html
 !/emma-diario.html
