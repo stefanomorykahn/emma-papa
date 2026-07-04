@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+<title>Emma & Papá</title>
+<meta name="description" content="Memoria viva y privada de Emma." />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#c67b6a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Emma" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== Emma & Papá · misma identidad visual (crema/terracota/cacao/Poppins) ===== */
+  :root{
+    --crema:#faf6f0; --panel:#fffdf9; --linea:#ece2d5; --acento:#c67b6a; --acento-2:#d98b74; --acento-suave:#f0e2dd;
+    --texto:#3a3330; --suave:#8a7d74; --ok:#6f9e78; --dorado:#d8a24e;
+    --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px;
+    --r-chip:12px; --r-card:16px; --r-hero:20px; --radio:16px;
+    --sombra:0 1px 3px rgba(120,95,70,.06), 0 1px 2px rgba(120,95,70,.04);
+    --fuente:'Poppins','Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  svg.ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--fuente);background:var(--crema);color:var(--texto);line-height:1.5;font-size:16px;
+    padding-bottom:calc(76px + var(--safe-bottom));-webkit-font-smoothing:antialiased;}
+  .app{max-width:560px;margin:0 auto;padding:12px 16px 16px;}
+  h1,h2,h3,h4{font-weight:600;margin:0;} p{margin:0;} button{font-family:inherit;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 10px;}
+  .marca{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;}
+  .logo{width:28px;height:28px;border-radius:9px;background:var(--acento);color:#fff;font-weight:700;
+    display:grid;place-items:center;font-size:15px;}
+  .estado-guardado{font-size:11.5px;color:var(--suave);display:flex;align-items:center;gap:5px;}
+  .punto{width:8px;height:8px;border-radius:50%;background:var(--ok);} .punto.offline{background:var(--dorado);}
+
+  .vista{display:none;animation:ap .22s ease;} .vista.activa{display:block;}
+  @keyframes ap{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+
+  /* ---- Home ---- */
+  .hola{margin:6px 2px 16px;}
+  .hola .nombre{font-size:21px;font-weight:600;}
+  .hola .meta{color:var(--suave);font-size:13.5px;margin-top:1px;}
+
+  .hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--acento);color:#fff;
+    border:none;border-radius:var(--r-hero);padding:16px 18px;cursor:pointer;transition:transform .1s;box-shadow:0 6px 16px rgba(198,123,106,.20);margin-bottom:var(--sp3);}
+  .hero:active{transform:scale(.985);}
+  .hero .ico{width:48px;height:48px;flex:0 0 48px;border-radius:14px;background:rgba(255,255,255,.18);display:grid;place-items:center;color:#fff;}
+  .hero .t{font-size:18px;font-weight:600;} .hero .s{font-size:13px;opacity:.9;}
+
+  .fila2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp3);margin-bottom:var(--sp4);}
+  .card-sec{display:flex;flex-direction:column;gap:var(--sp2);background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);
+    border-radius:var(--r-card);padding:14px;cursor:pointer;transition:transform .1s;min-height:100px;justify-content:space-between;}
+  .card-sec:active{transform:scale(.98);}
+  .card-sec .ico{width:38px;height:38px;border-radius:11px;background:var(--acento-suave);display:grid;place-items:center;color:var(--acento);}
+  .card-sec .t{font-size:15px;font-weight:600;} .card-sec .s{font-size:12px;color:var(--suave);}
+
+  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp2);margin-bottom:var(--sp4);}
+  .stat{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:10px 8px;text-align:center;}
+  .stat .n{font-size:18px;font-weight:700;} .stat .l{font-size:11px;color:var(--suave);margin-top:1px;}
+
+  .ultimo-emma{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:var(--r-card);padding:14px 16px;margin-bottom:var(--sp3);}
+  .ultimo-emma h3{font-size:13px;color:var(--suave);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+  .ue-item{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:14.5px;border-bottom:1px solid var(--linea);}
+  .ue-item:last-child{border-bottom:none;}
+  .ue-item .est{font-size:12.5px;color:var(--suave);}
+  .actualizar-linea{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+  .btn-actualizar{background:var(--acento-suave);color:var(--acento);border:none;border-radius:999px;padding:9px 16px;font-weight:600;font-size:13.5px;cursor:pointer;}
+  .btn-actualizar:active{transform:scale(.97);}
+  .upd-time{font-size:11.5px;color:var(--suave);}
+
+  /* ---- Comunes ---- */
+  .cabecera-vista{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .volver{background:var(--panel);border:1px solid var(--linea);border-radius:12px;width:40px;height:40px;font-size:18px;cursor:pointer;flex:0 0 40px;}
+  .cabecera-vista h2{font-size:18px;font-weight:600;}
+  .campo{margin-bottom:16px;} .campo>label{display:block;font-weight:600;font-size:14px;margin-bottom:8px;}
+  .campo .op{font-weight:400;color:var(--suave);font-size:12.5px;}
+  input[type=text],input[type=date],input[type=email],input[type=password],textarea{width:100%;font-family:inherit;font-size:16px;color:var(--texto);
+    background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:13px;transition:border-color .2s,box-shadow .2s;}
+  input:focus,textarea:focus{outline:none;border-color:var(--acento);box-shadow:0 0 0 3px rgba(198,123,106,.15);}
+  textarea{resize:vertical;min-height:64px;} textarea.grande{min-height:150px;font-size:17px;}
+  .fecha-linea{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--suave);margin-bottom:14px;}
+  .fecha-linea input[type=date]{width:auto;padding:8px 12px;font-size:14px;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{font-size:15px;padding:10px 15px;border-radius:999px;background:var(--panel);border:1.5px solid var(--linea);cursor:pointer;user-select:none;transition:all .12s;}
+  .chip:active{transform:scale(.96);} .chip.on{background:var(--acento);color:#fff;border-color:var(--acento);}
+  .chip.multi.on{background:var(--dorado);border-color:var(--dorado);} .chip.tag.on{background:#8a7d74;border-color:#8a7d74;color:#fff;}
+
+  .guardar{width:100%;background:var(--acento);color:#fff;border:none;border-radius:16px;padding:16px;font-size:17px;font-weight:600;cursor:pointer;margin-top:4px;transition:opacity .2s,transform .1s;}
+  .guardar:active{transform:scale(.99);} .guardar:disabled{opacity:.45;cursor:not-allowed;}
+
+  .buscar{margin-bottom:14px;}
+  .entrada{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
+  .entrada .top{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .entrada .fecha{font-weight:600;font-size:14.5px;}
+  .entrada .badge{background:var(--acento-suave);border-radius:999px;padding:2px 11px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+  .entrada .cuerpo{font-size:14px;} .entrada .cuerpo .et{color:var(--suave);}
+  .entrada .cita{font-style:italic;color:var(--acento);margin-top:6px;font-size:14px;}
+  .entrada .acc{display:flex;gap:8px;margin-top:10px;}
+  .mini{font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--linea);background:var(--crema);cursor:pointer;font-weight:600;color:var(--texto);}
+  .mini.del{color:#9a4636;}
+  .p-vacio{color:var(--suave);font-size:14px;padding:6px 0;}
+
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button{flex:0 0 auto;background:var(--panel);border:1px solid var(--linea);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--suave);cursor:pointer;}
+  .tabs button.on{background:var(--acento);color:#fff;border-color:var(--acento);}
+  /* Chips-pill de datos del perfil (arregla el "|") */
+  .tags .tag{background:var(--acento-suave);border-radius:999px;padding:6px 12px;font-size:13.5px;display:inline-flex;align-items:center;}
+  .tags .tag .x{color:var(--suave);font-size:11px;margin-left:5px;font-weight:600;}
+  /* Fila de chips en scroll horizontal (filtros) */
+  .chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:4px;}
+  .chips.scroll::-webkit-scrollbar{display:none;} .chips.scroll .chip{flex:0 0 auto;}
+  /* Estado vacío con CTA */
+  .empty{text-align:center;padding:26px 16px;}
+  .empty .et{font-weight:600;font-size:15px;margin-bottom:4px;} .empty .es{color:var(--suave);font-size:13.5px;margin-bottom:14px;}
+  .p-sub{font-size:12.5px;color:var(--suave);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;}
+  .p-item{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:11px 14px;margin-bottom:10px;}
+  .pi-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .pi-label{font-weight:600;font-size:15px;} .pi-meta{font-size:12px;color:var(--suave);margin-top:3px;}
+  .pi-nota{font-style:italic;color:var(--acento);font-size:13.5px;margin-top:6px;}
+  .estado{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap;}
+  .e-pos{background:#e4eee2;color:#4a7a52;} .e-neg{background:#f2e2dc;color:#a15641;} .e-var{background:#f4ead4;color:#8a6a2a;} .e-neu{background:#eee7dd;color:#7c716a;}
+  .p-bloque{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:13px 16px;margin-bottom:10px;}
+  .p-bloque h3{font-size:14.5px;margin-bottom:8px;}
+  .tags{display:flex;flex-wrap:wrap;gap:7px;}
+  .tag-view{background:var(--acento-suave);border-radius:999px;padding:6px 12px;font-size:13.5px;} .tag-view .x{color:var(--suave);font-size:11.5px;margin-left:4px;}
+
+  .deteccion{background:#fbf3e2;border:1px solid var(--dorado);border-radius:14px;padding:14px;margin:12px 0;}
+  .deteccion h4{font-size:14px;margin-bottom:8px;}
+  .det-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid #efe3c8;}
+  .det-item:first-of-type{border-top:none;} .det-item .txt{flex:1;font-size:14px;min-width:120px;}
+
+  .rec{background:var(--panel);border:1px solid var(--linea);border-radius:16px;padding:15px 16px;margin-bottom:12px;}
+  .rec .rt{font-size:16px;font-weight:600;} .rec .rmeta{font-size:12.5px;color:var(--suave);margin:3px 0 8px;}
+  .rec .rwhy{font-size:13.5px;margin-bottom:8px;} .rec ol{margin:0 0 10px;padding-left:18px;font-size:13.5px;color:#5a504a;}
+  .rec ol li{margin:2px 0;}
+
+  .grupo-btns{margin-bottom:18px;} .grupo-btns h3{font-size:12.5px;color:var(--suave);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+  .btn-full{width:100%;display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:14px 16px;font-size:15px;font-weight:600;color:var(--texto);cursor:pointer;margin-bottom:9px;text-align:left;}
+  .btn-full .ico{display:inline-flex;align-items:center;color:var(--suave);} .btn-full svg.ic{width:20px;height:20px;} .btn-full.peligro{color:#9a4636;} .btn-full.peligro .ico{color:#9a4636;}
+  .aviso{background:var(--panel);border:1px solid var(--linea);border-left:4px solid var(--acento);border-radius:12px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;color:var(--suave);}
+  .aviso.recordatorio{border-left-color:var(--dorado);color:#8a6a2a;background:#fbf3e2;}
+  .sync-box{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:14px;}
+  .sync-box .cuenta{color:var(--suave);font-size:13px;margin:6px 0 10px;} .sync-box .fila-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .privacidad{font-size:12.5px;color:var(--suave);text-align:center;padding:14px 4px 0;}
+
+  /* Galería */
+  .gal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .gal-card{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;overflow:hidden;cursor:pointer;}
+  .gal-thumb{width:100%;aspect-ratio:1/1;background:var(--acento-suave);display:flex;align-items:center;justify-content:center;color:var(--acento);position:relative;font-size:26px;}
+  .gal-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .gal-fav{position:absolute;top:6px;right:6px;background:rgba(255,255,255,.85);border-radius:999px;width:24px;height:24px;display:grid;place-items:center;font-size:13px;}
+  .gal-info{padding:8px 10px;} .gal-info .gt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .gal-info .gd{font-size:11px;color:var(--suave);}
+  .foto-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .foto-prev{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--linea);}
+  .foto-prev img{width:100%;height:100%;object-fit:cover;} .foto-prev .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:999px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;}
+  .sheet{display:none;position:fixed;inset:0;z-index:210;background:rgba(58,51,48,.5);}
+  .sheet.show{display:block;}
+  .sheet-card{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-radius:20px 20px 0 0;padding:18px 16px calc(20px + var(--safe-bottom));max-height:92vh;overflow:auto;}
+  .sheet-img{width:100%;border-radius:14px;background:var(--acento-suave);max-height:50vh;object-fit:cover;margin-bottom:12px;display:block;}
+  .sheet-ph{width:100%;border-radius:14px;background:var(--acento-suave);aspect-ratio:4/3;display:grid;place-items:center;color:var(--acento);margin-bottom:12px;font-size:40px;}
+
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;background:rgba(255,253,249,.97);backdrop-filter:blur(10px);border-top:1px solid var(--linea);padding-bottom:var(--safe-bottom);}
+  .nav button{flex:1;background:none;border:none;cursor:pointer;padding:9px 0 7px;color:var(--suave);font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;}
+  .nav button .ni{line-height:1;} .nav .ic{width:21px;height:21px;} .nav button.on{color:var(--acento);}
+  .nav button.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:0 0 4px 4px;background:var(--acento);}
+
+  .toast{position:fixed;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translateX(-50%) translateY(140%);background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;z-index:100;box-shadow:0 6px 20px rgba(0,0,0,.15);transition:transform .3s cubic-bezier(.2,.8,.2,1);max-width:88%;text-align:center;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  .login-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--crema);padding:24px;overflow:auto;}
+  .login-overlay.show{display:grid;place-items:center;}
+  .login-card{background:var(--panel);border:1px solid var(--linea);border-radius:20px;padding:28px 22px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 30px rgba(120,95,70,.12);}
+  .login-logo{width:54px;height:54px;border-radius:15px;background:var(--acento);color:#fff;font-family:Georgia,serif;font-weight:700;font-size:28px;display:grid;place-items:center;margin:0 auto 12px;}
+  .login-card h2{font-size:20px;} .login-sub{color:var(--suave);font-size:14px;margin:6px 0 18px;}
+  .login-card input{margin-bottom:12px;} .login-error{color:#9a4636;font-size:13.5px;min-height:18px;margin-bottom:6px;}
+  .login-nota{color:var(--suave);font-size:12px;margin-top:14px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="marca"><span class="logo">E</span><span>Emma &amp; Papá</span></div>
+    <div class="estado-guardado" id="estadoGuardado"><span class="punto"></span> Guardado</div>
+  </div>
+
+  <!-- ===== INICIO ===== -->
+  <section class="vista activa" id="v-inicio">
+    <div class="hola"><div class="nombre" id="emmaNombre">Emma Mory Verdi</div><div class="meta" id="emmaMeta"></div></div>
+
+    <button class="hero" onclick="ir('rapido')">
+      <span class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>
+      <span><span class="t">Registrar momento</span><br><span class="s">Estado, actividad y nota</span></span>
+    </button>
+    <div class="fila2">
+      <button class="card-sec" onclick="ir('ideas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.8 10.7c.6.5.8 1 .8 1.8v.4h6v-.4c0-.8.2-1.3.8-1.8A6 6 0 0 0 12 3z"/></svg></span><span><span class="t">¿Qué hacemos hoy?</span><br><span class="s">Ideas según Emma</span></span></button>
+      <button class="card-sec" onclick="nuevaNota()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></span><span><span class="t">Escribir nota</span><br><span class="s">Observación libre</span></span></button>
+    </div>
+    <div class="fila2">
+      <button class="card-sec" onclick="ir('comidas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M8 3v18"/><path d="M16 3c-1.5 0-2.5 2-2.5 5s1 4 2.5 4v9"/></svg></span><span><span class="t">Comidas de Emma</span><br><span class="s">Registro rápido</span></span></button>
+      <button class="card-sec" onclick="ir('galeria')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 4"/></svg></span><span><span class="t">Galería</span><br><span class="s">Fotos de Emma</span></span></button>
+    </div>
+
+    <div class="stats3">
+      <div class="stat"><div class="n" id="statTotal">0</div><div class="l">momentos</div></div>
+      <div class="stat"><div class="n" id="statRacha">0</div><div class="l">racha</div></div>
+      <div class="stat"><div class="n" id="statUpd">—</div><div class="l">actualizado</div></div>
+    </div>
+
+    <div class="actualizar-linea">
+      <span class="upd-time" id="updLine"></span>
+      <button class="btn-actualizar" id="btnUpdHome" onclick="actualizarPerfil('btnUpdHome')">↻ Actualizar perfil</button>
+    </div>
+
+    <div class="ultimo-emma" id="ultimoEmma"></div>
+  </section>
+
+  <!-- ===== REGISTRO RÁPIDO ===== -->
+  <section class="vista" id="v-rapido">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Registrar momento</h2></div>
+    <div class="fecha-linea"><span>Fecha:</span><input type="date" id="r-date" /></div>
+    <div class="campo"><label>¿Cómo estuvo Emma?</label><div class="chips" id="r-estado"></div></div>
+    <div class="campo"><label>¿Qué hicimos?</label><div class="chips multi" id="r-actividades"></div></div>
+    <div class="campo"><label>¿Qué le gustó más? <span class="op">(opcional)</span></label>
+      <input type="text" id="r-gusto" list="dl-gusto" placeholder="Ej. jugar con agua" /><datalist id="dl-gusto"></datalist></div>
+    <div class="campo"><label>Fruta o comida <span class="op">(opcional)</span></label>
+      <div class="chips multi" id="r-comida"></div>
+      <input type="text" id="r-comida-otro" list="dl-food" placeholder="Otra… (escribe y Enter)" style="margin-top:10px;display:none;" /><datalist id="dl-food"></datalist></div>
+    <div class="campo" id="campo-resultado" style="display:none;"><label>¿Le gustó la comida?</label><div class="chips" id="r-resultado"></div></div>
+    <div class="campo"><label>Palabra nueva <span class="op">(opcional)</span></label>
+      <input type="text" id="r-palabra" list="dl-word" placeholder="Ej. 'papá'" /><datalist id="dl-word"></datalist></div>
+    <div class="campo"><label>Nota rápida <span class="op">(opcional · dicta 🎙️)</span></label><textarea id="r-nota" placeholder="Algo para recordar…"></textarea></div>
+    <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
+      <div class="foto-chips" id="r-fotos"></div>
+      <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
+      <input type="file" id="r-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
+    </div>
+    <button class="guardar" id="r-guardar" onclick="guardarRapido()" disabled>Guardar</button>
+  </section>
+
+  <!-- ===== IDEAS ===== -->
+  <section class="vista" id="v-ideas">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>¿Qué hacemos hoy?</h2></div>
+    <div id="ideasForm">
+      <div class="campo"><label>Lugar</label><div class="chips" id="id-lugar"></div></div>
+      <div class="campo"><label>Tiempo</label><div class="chips" id="id-tiempo"></div></div>
+      <div class="campo"><label>¿Cómo está Emma?</label><div class="chips" id="id-estado"></div></div>
+      <div class="campo"><label>Objetivo</label><div class="chips" id="id-objetivo"></div></div>
+      <button class="guardar" onclick="verIdeas()">Ver ideas</button>
+    </div>
+    <div id="ideasResultado" style="margin-top:16px;"></div>
+  </section>
+
+  <!-- ===== COMIDAS DE EMMA ===== -->
+  <section class="vista" id="v-comidas">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Comidas de Emma</h2></div>
+    <div class="fecha-linea"><span>Fecha:</span><input type="date" id="c-date" /></div>
+    <div class="campo"><label>Momento</label><div class="chips" id="c-hora"></div></div>
+    <div class="campo"><label>¿Qué comió?</label><div class="chips multi" id="c-comidas"></div>
+      <input type="text" id="c-otro" list="dl-cfood" placeholder="Otra… (escribe)" style="margin-top:10px;display:none;" /><datalist id="dl-cfood"></datalist></div>
+    <div class="campo"><label>Cantidad <span class="op">(opcional)</span></label><div class="chips" id="c-cantidad"></div></div>
+    <div class="campo"><label>Resultado</label><div class="chips" id="c-resultado"></div></div>
+    <div class="campo"><label>Nota <span class="op">(opcional)</span></label><textarea id="c-nota" placeholder="Ej. pidió más"></textarea></div>
+    <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
+      <div class="foto-chips" id="c-fotos"></div>
+      <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
+      <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
+    </div>
+    <button class="guardar" onclick="guardarComida()">Guardar comida</button>
+  </section>
+
+  <!-- ===== GALERÍA ===== -->
+  <section class="vista" id="v-galeria">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Galería</h2>
+      <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button></div>
+    <input type="text" class="buscar" id="g-buscar" placeholder="Buscar por título, tag o descripción…" oninput="renderGaleria()" />
+    <div class="chips scroll" id="g-filtros" style="margin-bottom:14px;"></div>
+    <div id="g-grid"></div>
+  </section>
+
+  <!-- ===== NOTAS ===== -->
+  <section class="vista" id="v-notas">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Notas de papá</h2></div>
+    <div id="notaEditor" style="display:none;">
+      <div class="fecha-linea"><span>Fecha:</span><input type="date" id="nt-date" /></div>
+      <div class="campo"><textarea id="nt-text" class="grande" placeholder="Observación sobre Emma, tu relación, dudas o algo importante…"></textarea></div>
+      <div class="campo"><label>Tags <span class="op">(opcional)</span></label><div class="chips" id="nt-tags"></div></div>
+      <button class="guardar" id="nt-guardar" onclick="guardarNota()" disabled>Guardar nota</button>
+      <div id="nt-deteccion"></div>
+      <button class="mini" style="margin-top:12px;" onclick="cancelarNota()">Cancelar</button>
+    </div>
+    <div id="notaLista">
+      <button class="guardar" onclick="nuevaNota()" style="margin-bottom:14px;">＋ Nueva nota</button>
+      <input type="text" class="buscar" id="nt-buscar" placeholder="🔍 Buscar en notas…" oninput="renderNotas()" />
+      <div class="chips scroll" id="nt-filtros" style="margin-bottom:14px;"></div>
+      <div id="nt-items"></div>
+    </div>
+  </section>
+
+  <!-- ===== HISTORIAL ===== -->
+  <section class="vista" id="v-historial">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Historial</h2></div>
+    <input type="text" class="buscar" id="h-buscar" placeholder="Buscar…" oninput="renderHistorial()" />
+    <div class="chips scroll" id="h-filtros" style="margin-bottom:14px;"></div>
+    <div id="h-lista"></div>
+  </section>
+
+  <!-- ===== PERFIL ===== -->
+  <section class="vista" id="v-perfil">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Perfil vivo</h2>
+      <button class="btn-actualizar" style="margin-left:auto" id="btnUpdPerfil" onclick="actualizarPerfil('btnUpdPerfil')">↻ Actualizar</button></div>
+    <div id="decisiones"></div>
+    <div class="tabs" id="perfilTabs"></div>
+    <div id="perfilContenido"></div>
+    <div id="perfilNotas"></div>
+  </section>
+
+  <!-- ===== AJUSTES ===== -->
+  <section class="vista" id="v-ajustes">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Ajustes</h2></div>
+    <div id="syncBox"></div>
+    <div id="aiBox"></div>
+    <div id="driveBox"></div>
+
+    <div class="grupo-btns"><h3>Ver</h3>
+      <button class="btn-full" onclick="ir('historial')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 4h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 5.5V19"/></svg></span> Historial</button>
+      <button class="btn-full" onclick="ir('notas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span> Notas de papá</button>
+      <button class="btn-full" onclick="ir('galeria')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 4"/></svg></span> Galería de fotos</button>
+      <button class="btn-full" onclick="actualizarPerfil('btnUpdAjustes')" id="btnUpdAjustes"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4h-4"/></svg></span> Actualizar perfil</button>
+    </div>
+    <div class="grupo-btns"><h3>Copiar para Claude</h3>
+      <button class="btn-full" onclick="copiarParaClaude()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l1.5 4.2L18 10l-4.5 1.8L12 16l-1.5-4.2L6 10l4.5-1.8z"/></svg></span> Resumen para Claude</button>
+      <button class="btn-full" onclick="copiarNotasClaude()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/></svg></span> Todas las notas para Claude</button>
+      <button class="btn-full" onclick="copiarResumenDia()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="16" rx="2"/><path d="M9 5V4h6v1"/><path d="M9 11h6M9 15h4"/></svg></span> Resumen del día</button>
+      <button class="btn-full" id="btnSemanal" onclick="analisisSemanal()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/><path d="M8 13h3M8 17h3"/></svg></span> Análisis semanal (IA)</button>
+      <div id="weeklyResult"></div>
+    </div>
+    <div class="grupo-btns"><h3>Exportar</h3>
+      <button class="btn-full" onclick="exportarBackup()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v10"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/></svg></span> Backup completo (JSON)</button>
+      <button class="btn-full" onclick="exportarCSV()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></span> Entradas (CSV)</button>
+      <button class="btn-full" onclick="exportarMarkdown()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></span> Perfil + notas (Markdown)</button>
+      <button class="btn-full" onclick="document.getElementById('importFile').click()"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M8 13l4-4 4 4"/><path d="M5 4h14"/></svg></span> Importar backup (JSON)</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importarBackup(event)" />
+    </div>
+    <div class="aviso" id="ultimoBackup"></div>
+    <div class="aviso recordatorio" id="recordatorioBackup" style="display:none;">💾 Hace más de una semana sin backup. Exporta una copia.</div>
+    <div class="privacidad">🔒 Datos locales en tu dispositivo (y en tu Supabase si lo configuras).<br>Sin analytics · Sin terceros.<br>Para borrar un registro, edítalo o elimínalo desde el Historial.</div>
+  </section>
+</div>
+
+<nav class="nav">
+  <button data-vista="inicio" class="on" onclick="ir('inicio')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>Inicio</button>
+  <button data-vista="rapido" onclick="ir('rapido')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>Registrar</button>
+  <button data-vista="perfil" onclick="ir('perfil')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>Perfil</button>
+  <button data-vista="ideas" onclick="ir('ideas')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.8 10.7c.6.5.8 1 .8 1.8v.4h6v-.4c0-.8.2-1.3.8-1.8A6 6 0 0 0 12 3z"/></svg></span>Ideas</button>
+  <button data-vista="ajustes" onclick="ir('ajustes')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="7" cy="17" r="2"/></svg></span>Ajustes</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet" id="photoSheet" onclick="if(event.target===this)cerrarSheet()">
+  <div class="sheet-card" id="photoSheetCard"></div>
+</div>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card"><div class="login-logo">E</div><h2>Emma &amp; Papá</h2>
+    <p class="login-sub">Inicia sesión para sincronizar entre tus dispositivos.</p>
+    <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" />
+    <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" />
+    <div class="login-error" id="loginError"></div>
+    <button class="guardar" id="loginBtn" onclick="hacerLogin()">Entrar</button>
+    <p class="login-nota">Tus datos se guardan en este dispositivo aunque no inicies sesión.</p>
+  </div>
+</div>
+
+<script src="storage.js"></script>
+<script src="notes.js"></script>
+<script src="profile.js"></script>
+<script src="seed.js"></script>
+<script src="activities-bank.js"></script>
+<script src="supabase-config.js"></script>
+<script src="photos.js"></script>
+<script src="supabase-sync.js"></script>
+<script src="ai.js"></script>
+<script>
+/* ===== Utilidades ===== */
+const $=id=>document.getElementById(id);
+function hoyISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);}
+function fechaLarga(iso){if(!iso)return'';const[a,m,d]=iso.split('-').map(Number);return new Date(a,m-1,d).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function fechaCorta(iso){if(!iso)return'';const[a,m,d]=iso.split('-').map(Number);return new Date(a,m-1,d).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'});}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+function rebuildProfile(){if(window.EmmaProfile)EmmaProfile.rebuildProfileFromEntries();}
+
+/* ===== Router ===== */
+function ir(v){document.querySelectorAll('.vista').forEach(x=>x.classList.remove('activa'));$('v-'+v).classList.add('activa');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.vista===v));window.scrollTo(0,0);
+  if(v==='rapido'){fotoTarget='r-fotos';fotoInputId='r-foto-input';}
+  if(v==='comidas'){fotoTarget='c-fotos';fotoInputId='c-foto-input';fotosPendientes=[];}
+  if(v==='inicio')renderInicio();if(v==='rapido')refrescarChipsRapido();if(v==='historial')renderHistorial();
+  if(v==='perfil')renderPerfil();if(v==='notas')renderNotas();if(v==='ajustes')renderAjustes();if(v==='ideas')initIdeas();if(v==='comidas')initComidas();if(v==='galeria')renderGaleria();}
+
+/* ===== Registro rápido ===== */
+let sel={estado:'',actividades:[],comidas:[],resultado:''};let editandoId=null;
+const ESTADOS=['Feliz','Tranquila','Cansada','Irritable','Curiosa','Cariñosa','Juguetona','Sensible'];
+const RESULTADOS=['Le gustó','Neutral','No le gustó'];
+function chipsSingle(cid,lista,campo,obj){const c=$(cid);c.innerHTML='';lista.forEach(n=>{const ch=document.createElement('span');ch.className='chip';ch.textContent=n;
+  if(obj[campo]===n)ch.classList.add('on');ch.onclick=()=>{c.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));ch.classList.add('on');obj[campo]=n;if(obj===sel){validarRapido();guardarBorrador();}};c.appendChild(ch);});}
+function chipsMulti(cid,lista,arrKey,cb){const c=$(cid);c.innerHTML='';lista.forEach(n=>{const ch=document.createElement('span');ch.className='chip multi';ch.textContent=n;
+  if(sel[arrKey].includes(n))ch.classList.add('on');ch.onclick=()=>{const a=sel[arrKey];const i=a.indexOf(n);if(i>=0){a.splice(i,1);ch.classList.remove('on');}else{a.push(n);ch.classList.add('on');}validarRapido();guardarBorrador();if(cb)cb();};c.appendChild(ch);});}
+function refrescarChipsRapido(){
+  chipsSingle('r-estado',ESTADOS,'estado',sel);
+  chipsMulti('r-actividades',EmmaProfile.getSuggestedChips('activity').concat('Otro'),'actividades');
+  chipsMulti('r-comida',EmmaProfile.getSuggestedChips('food').concat('Otro'),'comidas',()=>{
+    $('r-comida-otro').style.display=sel.comidas.includes('Otro')?'block':'none';
+    $('campo-resultado').style.display=(sel.comidas.filter(x=>x!=='Otro').length||$('r-comida-otro').value)?'block':'none';});
+  chipsSingle('r-resultado',RESULTADOS,'resultado',sel);
+  llenarDatalist('dl-gusto',EmmaProfile.historyTokens('liked').concat(EmmaProfile.historyTokens('activity')));
+  llenarDatalist('dl-food',EmmaProfile.historyTokens('food'));llenarDatalist('dl-word',EmmaProfile.historyTokens('word'));
+  $('campo-resultado').style.display=(sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}
+function llenarDatalist(id,items){const dl=$(id);if(!dl)return;dl.innerHTML=[...new Set(items)].map(x=>`<option value="${esc(x)}">`).join('');}
+function validarRapido(){$('r-guardar').disabled=!(sel.estado&&sel.actividades.length>0);}
+function comidasFinales(){const b=sel.comidas.filter(x=>x!=='Otro');const o=$('r-comida-otro').value.trim();if(o)b.push(o);return b;}
+function guardarRapido(){const g=id=>$(id).value.trim();const foods=comidasFinales();
+  const e={date:$('r-date').value||hoyISO(),mood:sel.estado,activities:[...sel.actividades].filter(x=>x!=='Otro'),
+    liked:g('r-gusto')?[g('r-gusto')]:[],foods:foods,fruits:[],food_result:foods.length?sel.resultado:'',
+    newWords:g('r-palabra')?[g('r-palabra')]:[],calmingThings:[],frustrations:[],places:[],people:[],note:g('r-nota')};
+  let entry;
+  if(editandoId){entry=EmmaStore.updateEntry(editandoId,e);editandoId=null;toast('Actualizado ✓');}else{entry=EmmaStore.saveEntry(e);toast('Guardado ✓');}
+  rebuildProfile();
+  if(fotosPendientes.length&&entry)procesarFotos(entry); // sube en segundo plano
+  limpiarRapido();ir('inicio');}
+function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).value='');
+  $('r-date').value=hoyISO();$('r-comida-otro').style.display='none';$('campo-resultado').style.display='none';localStorage.removeItem('emmaDraftQuick');refrescarChipsRapido();validarRapido();
+  fotosPendientes=[];renderFotoPrev();}
+function guardarBorrador(){localStorage.setItem('emmaDraftQuick',JSON.stringify({date:$('r-date').value,sel,gusto:$('r-gusto').value,palabra:$('r-palabra').value,nota:$('r-nota').value,otro:$('r-comida-otro').value}));}
+function restaurarBorrador(){if(editandoId)return;try{const d=JSON.parse(localStorage.getItem('emmaDraftQuick'));if(!d)return;sel=d.sel||sel;$('r-date').value=d.date||hoyISO();$('r-gusto').value=d.gusto||'';$('r-palabra').value=d.palabra||'';$('r-nota').value=d.nota||'';$('r-comida-otro').value=d.otro||'';}catch(e){}}
+
+/* ===== Comidas de Emma ===== */
+let comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};
+const MENU_COMIDAS=['Granadilla','Guayaba','Frejol','Huevo con farinha','Leche 210 ml','Yogur','Plátano','Mango','Pera','Arroz','Pollo','Lentejas','Fideo corto','Verduras suaves','Camote','Quinua','Papaya','Mandarina','Fresa','Melón','Sandía','Sopita de pollo','Tortilla de huevo','Puré de papa','Crema de verduras','Crema de zapallo','Avena','Pan con queso','Pan con palta'];
+function chipsMultiObj(cid,lista,obj,key,cb){const c=$(cid);c.innerHTML='';obj[key]=obj[key]||[];
+  lista.forEach(n=>{const ch=document.createElement('span');ch.className='chip multi';ch.textContent=n;if(obj[key].includes(n))ch.classList.add('on');
+    ch.onclick=()=>{const a=obj[key];const i=a.indexOf(n);if(i>=0){a.splice(i,1);ch.classList.remove('on');}else{a.push(n);ch.classList.add('on');}if(cb)cb();};c.appendChild(ch);});}
+function initComidas(){
+  chipsSingle('c-hora',['Desayuno','Media mañana','Almuerzo','Merienda','Cena','Leche'],'hora',comidaSel);
+  const lista=[...new Set(MENU_COMIDAS.concat(EmmaProfile.historyTokens('food')))].slice(0,42).concat('Otro');
+  chipsMultiObj('c-comidas',lista,comidaSel,'comidas',()=>{$('c-otro').style.display=comidaSel.comidas.includes('Otro')?'block':'none';});
+  chipsSingle('c-cantidad',['Poca','Normal','Bastante'],'cantidad',comidaSel);
+  chipsSingle('c-resultado',['Le gustó','Comió poco','No quiso','Pidió más','Probó nuevo'],'resultado',comidaSel);
+  llenarDatalist('dl-cfood',EmmaProfile.historyTokens('food'));
+  if(!$('c-date').value)$('c-date').value=hoyISO();
+}
+function guardarComida(){
+  const foods=comidaSel.comidas.filter(x=>x!=='Otro');const otro=$('c-otro').value.trim();if(otro)foods.push(otro);
+  if(!foods.length){toast('Elige al menos una comida');return;}
+  const r=comidaSel.resultado;
+  const fr=(r==='Le gustó'||r==='Pidió más')?'Le gustó':(r==='No quiso'?'No le gustó':'Neutral');
+  const nota=[comidaSel.hora,comidaSel.cantidad?('Cantidad: '+comidaSel.cantidad):'',r,$('c-nota').value.trim()].filter(Boolean).join(' · ');
+  const entry=EmmaStore.saveEntry({date:$('c-date').value||hoyISO(),mood:'',activities:[],liked:(fr==='Le gustó'?[...foods]:[]),
+    foods:foods,fruits:[],food_result:fr,newWords:[],calmingThings:[],frustrations:[],places:[],people:[],note:nota});
+  rebuildProfile();
+  if(fotosPendientes.length&&entry)procesarFotos(entry);
+  comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};$('c-nota').value='';$('c-otro').value='';$('c-otro').style.display='none';
+  toast('Comida guardada ✓');ir('inicio');
+}
+
+/* ===== Ideas ===== */
+let idsel={lugar:'',tiempo:'10',estado:'',objetivo:''};
+function initIdeas(){
+  chipsSingle('id-lugar',['Casa','Colegio','Carro','Restaurante','Videollamada','Natación'],'lugar',idsel);
+  chipsSingle('id-tiempo',['5','10','20','30'],'tiempo',idsel);
+  chipsSingle('id-estado',['Feliz','Tranquila','Cansada','Irritable','Curiosa','Activa','No sé'],'estado',idsel);
+  chipsSingle('id-objetivo',['Conexión','Lenguaje','Movimiento','Creatividad','Comida','Calma','Fe','Aprender rutina','Solo jugar'],'objetivo',idsel);
+}
+function verIdeas(){const cont=$('ideasResultado');cont.innerHTML='<p class="p-vacio">Buscando ideas…</p>';
+  EmmaAI.recommendActivities(idsel).then(recs=>{
+    if(!recs||!recs.length){cont.innerHTML='<p class="p-vacio">No pude generar ideas ahora.</p>';return;}
+    cont.innerHTML=recs.slice(0,5).map((r,i)=>`<div class="rec">
+      <div class="rt">${esc(r.title)}</div>
+      <div class="rmeta">${r.duration_minutes||idsel.tiempo} min · ${esc(r.goal||'')}</div>
+      <div class="rwhy">${esc(r.reason||r.why_for_emma||'')}</div>
+      ${(r.materials&&r.materials.length)?`<div class="pi-meta" style="margin-bottom:8px">Necesitas: ${esc(r.materials.join(', '))}</div>`:''}
+      ${(r.steps&&r.steps.length)?`<ol>${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}
+      ${r.safety_note?`<div class="pi-meta">⚠️ ${esc(r.safety_note)}</div>`:''}
+      <div class="acc" style="margin-top:10px;flex-wrap:wrap">
+        <button class="mini" onclick='guardarActividad(${JSON.stringify(r).replace(/'/g,"&#39;")},"pos")'>Le gustó</button>
+        <button class="mini" onclick='guardarActividad(${JSON.stringify(r).replace(/'/g,"&#39;")},"neg")'>No le gustó</button>
+        <button class="mini" onclick='guardarActividad(${JSON.stringify(r).replace(/'/g,"&#39;")},"")'>Hecho</button>
+        <button class="mini" onclick='ideaConFoto(${JSON.stringify(r).replace(/'/g,"&#39;")})'>＋ Foto</button>
+        <button class="mini" onclick='verIdeas()'>Recomendar otra</button>
+      </div>
+    </div>`).join('');
+  }).catch(()=>cont.innerHTML='<p class="p-vacio">No pude generar ideas ahora.</p>');
+}
+function guardarActividad(r,sent){const act=(r.save_as_entry&&r.save_as_entry.activity)||r.title;
+  const entry=EmmaStore.saveEntry({date:hoyISO(),mood:'',activities:[act],liked:sent==='pos'?[act]:[],foods:[],food_result:'',
+    newWords:[],calmingThings:[],frustrations:sent==='neg'?[act]:[],places:[],people:[],note:'Idea: '+r.title});
+  rebuildProfile();toast(sent==='pos'?'Guardado · le gustó ✓':sent==='neg'?'Guardado · no le gustó':'Guardado ✓');return entry;}
+// Guardar la actividad y adjuntarle una foto
+function ideaConFoto(r){const entry=guardarActividad(r,'');if(entry)agregarFotoAEntrada(entry.id,hoyISO(),[(r.save_as_entry&&r.save_as_entry.activity)||r.title]);}
+
+/* ===== Fotos (en el formulario de Registrar) ===== */
+let fotosPendientes=[]; // {file?, url?, previewUrl}
+let fotoTarget='r-fotos'; let fotoInputId='r-foto-input';
+function pickFoto(){
+  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$(fotoInputId).click();}
+  else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){fotosPendientes.push({url:u.trim(),previewUrl:''});renderFotoPrev();}}
+}
+function onFotoPick(ev){[...ev.target.files].forEach(file=>{fotosPendientes.push({file,previewUrl:URL.createObjectURL(file)});});ev.target.value='';renderFotoPrev();}
+function renderFotoPrev(){
+  const c=$(fotoTarget);if(!c)return;
+  c.innerHTML=fotosPendientes.map((f,i)=>`<div class="foto-prev">${f.previewUrl?`<img src="${f.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="removeFoto(${i})">×</button></div>`).join('');
+}
+// Adjunta una foto directamente a una entrada ya guardada (Ideas)
+function agregarFotoAEntrada(entryId,date,tags){
+  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){
+    const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{entryId,date,tags});toast('Foto guardada ✓');rebuildProfile();}catch(err){toast('Error: '+(err.message||''));}};
+    inp.click();
+  }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{entryId,date,tags});toast('Foto guardada ✓');rebuildProfile();}}
+}
+function removeFoto(i){const f=fotosPendientes[i];if(f&&f.previewUrl)try{URL.revokeObjectURL(f.previewUrl);}catch(e){}fotosPendientes.splice(i,1);renderFotoPrev();}
+async function procesarFotos(entry){
+  const pend=fotosPendientes.slice();fotosPendientes=[];renderFotoPrev();
+  if(!pend.length||!window.EmmaPhotos)return;
+  const tags=[...(entry.activities||[]),...(entry.foods||[])];
+  for(const f of pend){
+    try{
+      if(f.file){toast('Subiendo foto…');await EmmaPhotos.addFromFile(f.file,{entryId:entry.id,date:entry.date,tags});}
+      else if(f.url){EmmaPhotos.addFromLink(f.url,{entryId:entry.id,date:entry.date,tags});}
+    }catch(err){toast('No se pudo subir una foto: '+(err.message||''));}
+  }
+  toast('Fotos guardadas ✓');rebuildProfile();
+}
+
+/* ===== Galería ===== */
+let galFiltro='todas';
+const GFILTROS=[['todas','Todas'],['fav','Favoritas'],['papa','Papá'],['mama','Mamá'],['familia','Familia'],['actividades','Actividades'],['comida','Comida'],['colegio','Colegio'],['natacion','Natación'],['recuerdos','Recuerdos'],['primera','Primera vez']];
+function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function fotoMatch(p,key){
+  if(key==='todas')return true;
+  if(key==='fav')return p.isFavorite;
+  const t=normTxt((p.tags||[]).join(' ')+' '+p.title+' '+p.description);
+  const kw={papa:'papa',mama:'mama',familia:'familia',actividades:'activ',comida:'comid',colegio:'colegio',natacion:'nataci',recuerdos:'recuerd',primera:'primera'}[key];
+  return kw?t.includes(kw):true;
+}
+function renderGaleria(){
+  $('g-filtros').innerHTML=GFILTROS.map(([k,l])=>`<span class="chip${k===galFiltro?' on':''}" onclick="setGalFiltro('${k}')">${l}</span>`).join('');
+  const q=normTxt($('g-buscar').value.trim());
+  let fotos=EmmaStore.getPhotos().slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  fotos=fotos.filter(p=>fotoMatch(p,galFiltro));
+  if(q)fotos=fotos.filter(p=>normTxt((p.tags||[]).join(' ')+' '+p.title+' '+p.description).includes(q));
+  const grid=$('g-grid');
+  if(!fotos.length){grid.innerHTML='<div class="empty"><div class="et">Sin fotos aún.</div><div class="es">Agrega fotos al registrar un momento, o toca “＋ Foto”.</div><button class="guardar" style="max-width:240px;margin:0 auto" onclick="agregarFotoLibre()">Agregar foto</button></div>';return;}
+  grid.innerHTML='<div class="gal-grid">'+fotos.map(p=>`<div class="gal-card" onclick="openSheet('${p.id}')">
+    <div class="gal-thumb" data-thumb="${p.id}">📷${p.isFavorite?'<span class="gal-fav">⭐</span>':''}</div>
+    <div class="gal-info"><div class="gt">${esc(p.title||'Foto')}</div><div class="gd">${fechaCorta(p.date)}${(p.tags&&p.tags[0])?' · '+esc(p.tags[0]):''}</div></div></div>`).join('')+'</div>';
+  // cargar thumbnails (en memoria) si Drive está conectado
+  if(window.EmmaPhotos)fotos.forEach(p=>{EmmaPhotos.getThumb(p).then(url=>{if(!url)return;const el=document.querySelector('[data-thumb="'+p.id+'"]');if(el)el.innerHTML='<img src="'+url+'">'+(p.isFavorite?'<span class="gal-fav">⭐</span>':'');});});
+}
+function setGalFiltro(k){galFiltro=k;renderGaleria();}
+function agregarFotoLibre(){
+  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){
+    const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{date:hoyISO(),tags:['recuerdo']});toast('Foto guardada ✓');renderGaleria();}catch(err){toast('Error: '+(err.message||''));}};
+    inp.click();
+  }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{date:hoyISO(),tags:['recuerdo']});renderGaleria();toast('Foto guardada ✓');}}
+}
+function openSheet(id){
+  const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;
+  const ent=p.entryId?EmmaStore.getEntries().find(e=>e.id===p.entryId):null;
+  const card=$('photoSheetCard');
+  card.innerHTML=`<div class="sheet-ph" id="sheetImg">📷</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div><b>${esc(p.title||'Foto')}</b><div class="pi-meta">${fechaCorta(p.date)}</div></div>
+      <button class="mini" onclick="toggleFav('${p.id}')">${p.isFavorite?'★ Favorita':'☆ Favorita'}</button></div>
+    ${p.description?`<div class="cuerpo" style="margin-top:8px">${esc(p.description)}</div>`:''}
+    ${(p.tags&&p.tags.length)?`<div class="tags" style="margin-top:8px">${p.tags.map(t=>`<span class="tag-view">${esc(t)}</span>`).join('')}</div>`:''}
+    ${ent?`<div class="cuerpo" style="margin-top:10px"><span class="et">Entrada:</span> ${esc((ent.activities||[]).join(', ')||ent.mood||'')}${ent.note?' — "'+esc(ent.note)+'"':''}</div>`:''}
+    <div class="acc" style="margin-top:14px;flex-wrap:wrap">
+      ${p.driveUrl?`<a class="mini" href="${esc(p.driveUrl)}" target="_blank" rel="noopener">Ver en Drive</a>`:''}
+      ${ent?`<button class="mini" onclick="cerrarSheet();ir('historial')">Ver entrada</button>`:''}
+      <button class="mini" onclick="editarFoto('${p.id}')">Editar</button>
+      <button class="mini del" onclick="quitarFoto('${p.id}')">Quitar de la app</button>
+    </div>
+    <button class="mini" style="margin-top:12px" onclick="cerrarSheet()">Cerrar</button>`;
+  $('photoSheet').classList.add('show');
+  if(window.EmmaPhotos)EmmaPhotos.getThumb(p).then(url=>{if(url){const el=$('sheetImg');if(el)el.outerHTML='<img class="sheet-img" src="'+url+'">';}});
+}
+function cerrarSheet(){$('photoSheet').classList.remove('show');}
+function toggleFav(id){const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;EmmaStore.updatePhoto(id,{isFavorite:!p.isFavorite});openSheet(id);renderGaleria();}
+function editarFoto(id){const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;
+  const t=prompt('Título:',p.title||'');if(t===null)return;
+  const d=prompt('Descripción:',p.description||'');
+  const tg=prompt('Tags (separados por coma):',(p.tags||[]).join(', '));
+  EmmaStore.updatePhoto(id,{title:t.trim(),description:(d||'').trim(),tags:(tg||'').split(',').map(s=>s.trim()).filter(Boolean)});
+  openSheet(id);renderGaleria();toast('Foto actualizada ✓');}
+function quitarFoto(id){if(!confirm('¿Quitar esta foto de la app? (No se borra de Google Drive)'))return;EmmaStore.deletePhoto(id);cerrarSheet();renderGaleria();toast('Foto quitada de la app');}
+
+/* ===== Notas ===== */
+let notaEditId=null,notaTags=[];
+function nuevaNota(){notaEditId=null;notaTags=[];$('nt-text').value='';$('nt-date').value=hoyISO();$('nt-deteccion').innerHTML='';pintarTagChips();$('nt-guardar').disabled=true;$('notaLista').style.display='none';$('notaEditor').style.display='block';ir('notas');}
+function cancelarNota(){$('notaEditor').style.display='none';$('notaLista').style.display='block';renderNotas();}
+function pintarTagChips(){const c=$('nt-tags');c.innerHTML='';EmmaNotes.TAGS.forEach(t=>{const ch=document.createElement('span');ch.className='chip tag';ch.textContent=t;if(notaTags.includes(t))ch.classList.add('on');ch.onclick=()=>{const i=notaTags.indexOf(t);if(i>=0){notaTags.splice(i,1);ch.classList.remove('on');}else{notaTags.push(t);ch.classList.add('on');}};c.appendChild(ch);});}
+function guardarNota(){const text=$('nt-text').value.trim();if(!text)return;let nota;
+  if(notaEditId){nota=EmmaNotes.updateNote(notaEditId,{text,tags:[...notaTags],date:$('nt-date').value||hoyISO()});toast('Nota actualizada ✓');}
+  else{nota=EmmaNotes.saveNote({date:$('nt-date').value||hoyISO(),text,tags:[...notaTags]});toast('Nota guardada ✓');}
+  rebuildProfile();const sug=EmmaProfile.extractSuggestionsFromFreeText(text);if(sug.length)mostrarDeteccion(sug,nota.id);else cancelarNota();}
+function mostrarDeteccion(sug,noteId){$('nt-deteccion').innerHTML=`<div class="deteccion"><h4>Detecté posible información para el perfil</h4>
+  ${sug.map((s,i)=>`<div class="det-item" id="det-${i}"><span class="txt"><b>${esc(s.value)}</b> → ${tipoLabel(s.type)}${s.sentiment==='pos'?' · le gustó':s.sentiment==='neg'?' · no le gustó':''}</span>
+    <button class="mini" onclick="detAgregar(${i},'${s.type}','${esc(s.value)}','${s.sentiment}','${noteId}')">Agregar</button>
+    <button class="mini" onclick="detEditar(${i},'${s.type}','${s.sentiment}','${noteId}')">Editar</button>
+    <button class="mini" onclick="document.getElementById('det-${i}').remove()">Ignorar</button></div>`).join('')}
+  <div style="margin-top:10px"><button class="mini" onclick="cancelarNota()">Listo</button></div></div>`;}
+function tipoLabel(t){return({food:'alimentación',activity:'actividad',word:'lenguaje',place:'lugar',person:'persona'})[t]||t;}
+function detAgregar(i,type,value,sent,noteId){EmmaProfile.addDetectedItemToProfile(type,value,sent,noteId);const el=$('det-'+i);if(el)el.innerHTML='<span class="txt" style="color:var(--ok)">✓ Agregado: '+esc(value)+'</span>';toast('Agregado al perfil ✓');}
+function detEditar(i,type,sent,noteId){const v=prompt('Editar valor:');if(v&&v.trim())detAgregar(i,type,v.trim(),sent,noteId);}
+function renderNotas(){const q=$('nt-buscar').value.trim().toLowerCase();const fTag=$('nt-filtros').dataset.tag||'';
+  const cf=$('nt-filtros');if(!cf.dataset.pintado){cf.dataset.pintado='1';cf.innerHTML=['Todas',...EmmaNotes.TAGS].map(t=>`<span class="chip tag${(t==='Todas'&&!fTag)?' on':''}" onclick="filtrarTag('${t==='Todas'?'':t}',this)">${t}</span>`).join('');}
+  let notes=EmmaNotes.getNotes();if(fTag)notes=notes.filter(n=>(n.tags||[]).includes(fTag));
+  if(q)notes=notes.filter(n=>(n.text||'').toLowerCase().includes(q)||(n.tags||[]).join(' ').toLowerCase().includes(q));
+  const cont=$('nt-items');if(!notes.length){cont.innerHTML=(q||fTag)?'<p class="p-vacio">Ninguna nota coincide.</p>':'<div class="empty"><div class="et">No hay notas todavía.</div><div class="es">Usa notas para observaciones rápidas o ideas que quieras recordar.</div><button class="guardar" style="max-width:260px;margin:0 auto" onclick="nuevaNota()">Escribir primera nota</button></div>';return;}
+  cont.innerHTML=notes.map(n=>`<div class="entrada"><div class="top"><span class="fecha">${fechaCorta(n.date)}</span>${n.isImportant?'<span class="badge">⭐ Importante</span>':''}</div>
+    ${(n.tags&&n.tags.length)?`<div class="tags" style="margin-bottom:6px">${n.tags.map(t=>`<span class="tag-view">${esc(t)}</span>`).join('')}</div>`:''}
+    <div class="cuerpo">${esc(n.text)}</div><div class="acc"><button class="mini" onclick="editarNota('${n.id}')">Editar</button><button class="mini del" onclick="eliminarNota('${n.id}')">Eliminar</button></div></div>`).join('');}
+function filtrarTag(t,el){$('nt-filtros').dataset.tag=t;el.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));el.classList.add('on');renderNotas();}
+function editarNota(id){const n=EmmaNotes.getNotes().find(x=>x.id===id);if(!n)return;notaEditId=id;notaTags=[...(n.tags||[])];$('nt-text').value=n.text;$('nt-date').value=n.date;$('nt-deteccion').innerHTML='';pintarTagChips();$('nt-guardar').disabled=false;$('notaLista').style.display='none';$('notaEditor').style.display='block';}
+function eliminarNota(id){if(!confirm('¿Eliminar esta nota?'))return;EmmaNotes.deleteNote(id);rebuildProfile();renderNotas();toast('Nota eliminada');}
+
+/* ===== Historial (feed unificado: entradas + notas, con filtros) ===== */
+let histFiltro='todos';
+const HFILTROS=[['todos','Todos'],['comidas','Comidas'],['actividades','Actividades'],['notas','Notas'],['pendiente','IA pendiente']];
+function pillIA(status){
+  if(status==='analyzed')return '<span class="estado e-pos">IA ✓</span>';
+  if(status==='failed')return '<span class="estado e-neg">IA falló</span>';
+  return '<span class="estado e-var">IA pendiente</span>';
+}
+function renderHistorial(){
+  const cont=$('h-lista');const q=$('h-buscar').value.trim().toLowerCase();
+  $('h-filtros').innerHTML=HFILTROS.map(([k,l])=>`<span class="chip${k===histFiltro?' on':''}" onclick="setHistFiltro('${k}')">${l}</span>`).join('');
+  // feed unificado
+  let items=EmmaStore.getEntries().map(e=>({t:'entry',date:e.date,createdAt:e.createdAt,data:e}))
+    .concat(EmmaNotes.getNotes().map(n=>({t:'note',date:n.date,createdAt:n.createdAt,data:n})));
+  items.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  // filtros
+  items=items.filter(it=>{
+    const d=it.data;
+    if(histFiltro==='comidas')return it.t==='entry'&&(d.foods||[]).length;
+    if(histFiltro==='actividades')return it.t==='entry'&&(d.activities||[]).length;
+    if(histFiltro==='notas')return it.t==='note';
+    if(histFiltro==='pendiente')return (d.analysis_status||'pending')!=='analyzed';
+    return true;
+  });
+  if(q)items=items.filter(it=>JSON.stringify(it.data).toLowerCase().includes(q));
+  if(!items.length){
+    if(q||histFiltro!=='todos'){cont.innerHTML='<p class="p-vacio">Nada coincide con el filtro.</p>';return;}
+    cont.innerHTML='<div class="empty"><div class="et">Aún no hay momentos registrados.</div><div class="es">Empieza con un registro rápido.</div><button class="guardar" style="max-width:260px;margin:0 auto" onclick="ir(\'rapido\')">Registrar momento</button></div>';return;}
+  cont.innerHTML=items.map(it=>it.t==='note'?tarjetaNota(it.data):tarjeta(it.data)).join('');
+}
+function setHistFiltro(k){histFiltro=k;renderHistorial();}
+function tarjeta(e){const dato=(et,v)=>{v=Array.isArray(v)?v.join(', '):v;return v?`<div class="cuerpo"><span class="et">${et}:</span> ${esc(v)}</div>`:'';};
+  return `<div class="entrada"><div class="top"><span class="fecha">${fechaCorta(e.date)}</span><span style="display:flex;gap:6px;align-items:center">${e.mood?`<span class="badge">${esc(e.mood)}</span>`:''}${pillIA(e.analysis_status)}</span></div>
+    ${dato('Hicimos',e.activities)}${dato('Le gustó',e.liked)}${dato('Comida',(e.foods||[]).join(', ')+(e.food_result?' ('+e.food_result+')':''))}${dato('Palabra nueva',e.newWords)}
+    ${e.note?`<div class="cita">"${esc(e.note)}"</div>`:''}
+    <div class="acc"><button class="mini" onclick="editar('${e.id}')">Editar</button><button class="mini del" onclick="eliminar('${e.id}')">Eliminar</button></div></div>`;}
+function tarjetaNota(n){
+  return `<div class="entrada"><div class="top"><span class="fecha">${fechaCorta(n.date)}</span><span style="display:flex;gap:6px;align-items:center"><span class="badge">Nota</span>${n.isImportant?'<span class="badge">⭐</span>':''}</span></div>
+    ${(n.tags&&n.tags.length)?`<div class="tags" style="margin-bottom:6px">${n.tags.map(t=>`<span class="tag-view">${esc(t)}</span>`).join('')}</div>`:''}
+    <div class="cuerpo">${esc(n.text)}</div>
+    <div class="acc"><button class="mini" onclick="ir('notas');setTimeout(()=>editarNota('${n.id}'),50)">Editar</button><button class="mini del" onclick="eliminarNota('${n.id}');renderHistorial()">Eliminar</button></div></div>`;}
+function editar(id){const e=EmmaStore.getEntries().find(x=>x.id===id);if(!e)return;editandoId=id;
+  sel={estado:e.mood||'',actividades:[...(e.activities||[])],comidas:[...(e.foods||[])],resultado:e.food_result||''};
+  $('r-date').value=e.date||hoyISO();$('r-gusto').value=(e.liked||[]).join(', ');$('r-palabra').value=(e.newWords||[]).join(', ');$('r-nota').value=e.note||'';$('r-comida-otro').value='';
+  refrescarChipsRapido();validarRapido();ir('rapido');toast('Editando');}
+function eliminar(id){if(!confirm('¿Eliminar este registro?'))return;EmmaStore.deleteEntry(id);rebuildProfile();renderHistorial();toast('Eliminado');}
+
+/* ===== Perfil ===== */
+let perfTab='resumen';let decVer=false;
+const TABS=[['resumen','Resumen'],['alimentacion','Alimentación'],['actividades','Actividades'],['canciones','Canciones'],['animales','Animales'],['lenguaje','Lenguaje'],['emociones','Emociones'],['lugares','Lugares'],['sobre','Sobre Emma'],['recuerdos','Recuerdos']];
+function renderPerfil(){rebuildProfile();
+  const dec=EmmaAI.practicalDecisions();
+  if(perfTab==='resumen'&&dec.length){const vis=decVer?dec:dec.slice(0,2);
+    $('decisiones').innerHTML=`<div class="p-bloque"><h3>Decisiones sugeridas</h3>${vis.map(d=>`<div class="cuerpo" style="padding:3px 0;font-size:14px">• ${esc(d)}</div>`).join('')}${dec.length>2?`<button class="mini" style="margin-top:6px" onclick="decVer=!decVer;renderPerfil()">${decVer?'Ver menos':'Ver más'}</button>`:''}</div>`;}
+  else $('decisiones').innerHTML='';
+  $('perfilTabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===perfTab?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+  $('perfilContenido').innerHTML=EmmaProfile.renderTab(perfTab);
+  const pn=$('perfilNotas');
+  if(perfTab==='resumen'){const imp=EmmaNotes.getNotes().filter(n=>n.isImportant).slice(0,5);
+    pn.innerHTML=`<div class="p-bloque"><h3>Notas importantes</h3>${imp.length?imp.map(n=>`<div class="pi-nota" style="font-style:normal">${esc(n.text)} <span class="pi-meta">· ${fechaCorta(n.date)}</span></div>`).join(''):'<p class="p-vacio">Marca notas con el tag “Importante”.</p>'}<div style="margin-top:10px"><button class="mini" onclick="ir('notas')">Ver notas</button></div></div>`;}
+  else pn.innerHTML='';}
+function setTab(t){perfTab=t;renderPerfil();}
+
+/* ===== Actualizar perfil ===== */
+function actualizarPerfil(btnId){const b=btnId?$(btnId):null;const orig=b?b.innerHTML:'';
+  EmmaAI.updateEmmaProfile(msg=>{if(b)b.innerHTML=msg;}).then(()=>{
+    rebuildProfile();refrescarVista();
+    const lu=EmmaStore.getMeta().lastProfileUpdate;
+    setTimeout(()=>{if(b)b.innerHTML=orig;},1800);
+    toast('Perfil actualizado ✓');});}
+
+/* ===== Ajustes / backup ===== */
+function descargar(c,n,t){const b=new Blob([c],{type:t});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
+function backupCompleto(){return{app:'Emma & Papá',version:3,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),exportadoEl:new Date().toISOString()};}
+function exportarBackup(){descargar(JSON.stringify(backupCompleto(),null,2),'emma-backup-'+hoyISO()+'.json','application/json');EmmaStore.setMeta({lastBackup:new Date().toISOString()});renderAjustes();toast('Backup exportado 📁');}
+function exportarMarkdown(){descargar(EmmaNotes.exportMarkdown()+'\n'+resumenPerfilTexto(),'emma-'+hoyISO()+'.md','text/markdown');toast('Markdown descargado');}
+function exportarCSV(){const cols=['date','mood','activities','liked','foods','food_result','new_words','note'];const esc2=v=>{v=Array.isArray(v)?v.join('; '):(v||'');return '"'+String(v).replace(/"/g,'""')+'"';};
+  const rows=EmmaStore.getEntries().map(e=>[e.date,e.mood,e.activities,e.liked,e.foods,e.food_result,e.newWords,e.note].map(esc2).join(','));descargar([cols.join(','),...rows].join('\n'),'emma-entradas-'+hoyISO()+'.csv','text/csv');toast('CSV descargado');}
+function resumenPerfilTexto(){const t=EmmaProfile.getTopItems('foods',8).filter(f=>f.pos>0).map(f=>f.label);const a=EmmaProfile.getTopItems('activities',8).map(x=>x.label);const w=EmmaProfile.getRecentItems('language',10).map(x=>x.label);
+  return `# Perfil de Emma\nEdad: ${EmmaStore.edadEmma()}\nLe gustan: ${t.join(', ')||'—'}\nActividades top: ${a.join(', ')||'—'}\nPalabras: ${w.join(', ')||'—'}\n`;}
+function copiar(txt,msg){navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copiado 📋')).catch(()=>prompt('Copia:',txt));}
+function copiarParaClaude(){let t='Información de mi hija Emma (registros y perfil). Ayúdame a organizarla y entender mejor sus gustos, patrones y necesidades.\n\n'+resumenPerfilTexto()+'\nÚltimas entradas:\n';
+  EmmaStore.getEntries().slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15).forEach(e=>{t+=`- ${e.date}: ${e.mood||'—'}, ${(e.activities||[]).join('/')||''}${(e.liked||[]).length?', le gustó '+e.liked.join('/'):''}${(e.foods||[]).length?', comió '+e.foods.join('/')+(e.food_result?' ('+e.food_result+')':''):''}${e.note?' — "'+e.note+'"':''}\n`;});
+  copiar(t,'Resumen para Claude copiado 🤖');}
+function copiarNotasClaude(){copiar(EmmaNotes.copyForClaude(),'Notas copiadas 🤖');}
+function copiarResumenDia(){const hoy=hoyISO();const d=EmmaStore.getEntries().filter(e=>e.date===hoy);if(!d.length){toast('No hay registros de hoy');return;}
+  let t='Emma · '+fechaLarga(hoy)+'\n';d.forEach(e=>{const p=[];if(e.mood)p.push('Estado: '+e.mood);if((e.activities||[]).length)p.push('Hicimos: '+e.activities.join(', '));if((e.liked||[]).length)p.push('Le gustó: '+e.liked.join(', '));if((e.foods||[]).length)p.push('Comida: '+e.foods.join(', ')+(e.food_result?' ('+e.food_result+')':''));if((e.newWords||[]).length)p.push('Palabra: '+e.newWords.join(', '));if(e.note)p.push('Nota: '+e.note);t+='• '+p.join(' · ')+'\n';});copiar(t,'Resumen del día copiado 📋');}
+function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;
+  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);
+  rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
+function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
+  if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
+function renderAjustes(){const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+  if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
+    sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
+    else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}
+  else sb.innerHTML='';
+  const ab=$('aiBox');
+  if(window.EmmaAI&&EmmaAI.enabled()){
+    const mesActual=new Date().toISOString().slice(0,7);
+    const anal=EmmaStore.getAnalyses().filter(a=>(a.createdAt||'').slice(0,7)===mesActual);
+    const ultimo=EmmaStore.getAnalyses().slice(-1)[0];
+    ab.innerHTML=`<div class="sync-box"><div><b>Uso IA</b></div>
+      <div class="cuenta">Análisis este mes: ${anal.length}<br>
+      Gasto estimado: US$${EmmaAI.monthSpend().toFixed(2)} / ${EmmaAI.monthLimit()}<br>
+      Último modelo: ${ultimo?esc(ultimo.model_used||'—'):'—'}</div></div>`;
+  } else ab.innerHTML='';
+  // Google Drive
+  const db=$('driveBox');
+  if(window.EmmaPhotos){const st=EmmaPhotos.status();
+    if(st.estado==='no-config')db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}<br>Modo enlace (pega links). Para subir desde la app, configura tu Client ID (ver PHOTOS.md).</div></div>`;
+    else if(st.estado==='conectado')db.innerHTML=`<div class="sync-box"><div><b>Google Drive conectado</b></div><div class="cuenta">Cuenta: ${esc(st.email||'—')}<br>Carpeta: ${esc(st.folder||'')}</div><button class="mini del" onclick="desconectarDrive()">Desconectar</button></div>`;
+    else db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}</div><button class="mini" onclick="conectarDrive()">Conectar Google Drive</button></div>`;
+  }else db.innerHTML='';
+  $('ultimoBackup').innerHTML=lb?'📁 Último backup: <b>'+fechaCorta(lb.slice(0,10))+'</b>':'📁 Aún no has hecho backup.';
+  const hay=EmmaStore.getEntries().length>0;const diff=lb?(Date.now()-new Date(lb).getTime())/86400000:999;$('recordatorioBackup').style.display=(hay&&diff>7)?'block':'none';}
+
+/* ===== Análisis semanal (IA) ===== */
+function analisisSemanal(){
+  if(!(window.EmmaAI&&EmmaAI.enabled())){$('weeklyResult').innerHTML='<div class="aviso">Activa la IA (ver AI.md) para el análisis semanal.</div>';return;}
+  const b=$('btnSemanal');const orig=b.innerHTML;b.innerHTML='Analizando la semana…';
+  $('weeklyResult').innerHTML='';
+  EmmaAI.weeklyAnalysis().then(w=>{
+    if(!w){$('weeklyResult').innerHTML='<div class="aviso">No se pudo generar el análisis.</div>';return;}
+    const bloque=(t,arr)=>(arr&&arr.length)?`<div class="p-sub">${t}</div>${arr.map(x=>`<div class="cuerpo" style="padding:3px 0;font-size:14px">• ${esc(typeof x==='string'?x:(x.text||JSON.stringify(x)))}</div>`).join('')}`:'';
+    $('weeklyResult').innerHTML=`<div class="p-bloque" style="margin-top:12px">
+      ${bloque('Cambios',w.changes)}${bloque('Patrones',w.patterns)}
+      ${bloque('Gustos nuevos',w.new_likes)}${bloque('Rechazos nuevos',w.new_dislikes)}
+      ${bloque('Repetir actividades',w.repeat_activities)}${bloque('Repetir comidas',w.repeat_foods)}
+      ${bloque('A observar',w.watch)}${bloque('Recomendaciones',w.recommendations)}
+    </div>`;
+  }).catch(e=>{$('weeklyResult').innerHTML='<div class="aviso">'+(e.blocked?'Límite de gasto alcanzado este mes.':'Error al analizar, intenta de nuevo.')+'</div>';})
+  .finally(()=>{b.innerHTML=orig;});
+}
+
+/* ===== Google Drive ===== */
+function conectarDrive(){toast('Abriendo Google…');EmmaPhotos.connect().then(()=>{renderAjustes();toast('Google Drive conectado ✓');}).catch(e=>toast('No se pudo conectar: '+(e.message||'')));}
+function desconectarDrive(){EmmaPhotos.disconnect();renderAjustes();toast('Google Drive desconectado');}
+
+/* ===== Inicio ===== */
+function estadoCorto(it){if(!it)return'';if(it.pos>0&&it.neg===0)return'le gusta';if(it.neg>0&&it.pos===0)return'no le gusta';return'neutral';}
+function renderInicio(){
+  $('emmaNombre').textContent=EmmaStore.EMMA.nombre;
+  $('emmaMeta').textContent=EmmaStore.edadEmma()+' · '+fechaLarga(hoyISO()).replace(/^\w/,c=>c.toUpperCase());
+  $('statRacha').textContent=EmmaStore.racha();$('statTotal').textContent=EmmaStore.getEntries().length;
+  const lu=EmmaStore.getMeta().lastProfileUpdate;
+  $('statUpd').textContent=lu?new Date(lu).toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'Nunca';
+  $('updLine').textContent=lu?('Última actualización: '+new Date(lu).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Toca para organizar la info de Emma';
+  // Último de Emma (hasta 3 datos)
+  const food=EmmaProfile.getRecentItems('foods',1)[0];const act=EmmaProfile.getRecentItems('activities',1)[0];
+  const word=EmmaProfile.getRecentItems('language',1)[0];const song=EmmaProfile.getTopItems('songs',1)[0];const calm=EmmaProfile.getRecentItems('calming',1)[0];
+  const lines=[];
+  if(food)lines.push([food.label,estadoCorto(food)]);
+  if(act)lines.push([act.label,estadoCorto(act)==='neutral'?'actividad favorita':estadoCorto(act)]);
+  if(word)lines.push([word.label,'palabra nueva']);
+  else if(calm)lines.push([calm.label,'la calma']);
+  else if(song)lines.push([song.label,'canción']);
+  const ue=$('ultimoEmma');
+  ue.innerHTML='<h3>Último de Emma</h3>'+(lines.length?lines.slice(0,3).map(l=>`<div class="ue-item"><span>${esc(l[0])}</span><span class="est">${esc(l[1])}</span></div>`)
+    .join(''):'<div class="empty" style="padding:14px 6px"><div class="es">Todavía no hay datos. Registra el primer momento.</div><button class="mini" onclick="ir(\'rapido\')">Registrar ahora</button></div>');
+}
+
+/* ===== Estado / login ===== */
+function actualizarEstado(){const el=$('estadoGuardado');
+  if(window.EmmaSync&&EmmaSync.configured){const s=EmmaSync.state;const off=(s==='offline'||s==='error'||s==='local');el.innerHTML='<span class="punto '+(off?'offline':'')+'"></span> '+EmmaSync.statusText();}
+  else el.innerHTML=navigator.onLine?'<span class="punto"></span> Guardado':'<span class="punto offline"></span> Sin conexión';}
+window.addEventListener('online',actualizarEstado);window.addEventListener('offline',actualizarEstado);
+function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
+function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
+function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
+function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
+window.onEmmaSynced=refrescarVista;
+
+/* ===== Init ===== */
+function init(){
+  if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();
+  $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
+  refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
+  ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));
+  $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
+  rebuildProfile();
+  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
+  actualizarEstado();renderInicio();
+  if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+}
+init();
+</script>
+</body>
+</html>

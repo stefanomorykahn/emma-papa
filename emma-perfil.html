@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Perfil de Emma</title>
+<meta name="theme-color" content="#c67b6a" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  emma-perfil.html · Perfil Vivo de Emma (standalone).
+  Usa la misma capa de datos y el mismo motor de perfil que la app.
+-->
+<style>
+  :root{--crema:#faf6f0;--panel:#fffdf9;--linea:#ece2d5;--acento:#c67b6a;--acento-suave:#f0e2dd;--texto:#3a3330;--suave:#8a7d74;
+    --fuente:'Poppins','Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  *{box-sizing:border-box;} body{margin:0;font-family:var(--fuente);background:var(--crema);color:var(--texto);line-height:1.5;font-size:16px;}
+  .app{max-width:560px;margin:0 auto;padding:16px 16px 40px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .volver{text-decoration:none;background:var(--panel);border:1px solid var(--linea);border-radius:12px;padding:9px 14px;font-weight:600;color:var(--acento);font-size:14px;}
+  h1{font-size:20px;margin:0;} .sub{color:var(--suave);font-size:13.5px;margin-top:2px;}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin:12px 0;-webkit-overflow-scrolling:touch;}
+  .tabs button{flex:0 0 auto;background:var(--panel);border:1px solid var(--linea);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--suave);cursor:pointer;}
+  .tabs button.on{background:var(--acento);color:#fff;border-color:var(--acento);}
+  .p-sub{font-size:12.5px;color:var(--suave);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;}
+  .p-item{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:11px 14px;margin-bottom:10px;}
+  .pi-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .pi-label{font-weight:600;font-size:15px;} .pi-meta{font-size:12px;color:var(--suave);margin-top:3px;}
+  .pi-nota{font-style:italic;color:var(--acento);font-size:13.5px;margin-top:6px;}
+  .estado{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap;}
+  .e-pos{background:#e2efe1;color:#3f7a4a;} .e-neg{background:#f6ddd6;color:#9a4636;} .e-var{background:#f6ecd6;color:#8a6a2a;} .e-neu{background:#eee7dd;color:#7c716a;}
+  .p-bloque{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:13px 16px;margin-bottom:10px;}
+  .p-bloque h3{font-size:14.5px;margin-bottom:8px;} .tags{display:flex;flex-wrap:wrap;gap:7px;}
+  .tag{background:var(--acento-suave);border-radius:999px;padding:6px 12px;font-size:13.5px;} .tag .x{color:var(--suave);font-size:11.5px;margin-left:4px;}
+  .p-vacio{color:var(--suave);font-size:14px;padding:6px 0;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div><h1 id="nombre">Emma Mory Verdi</h1><div class="sub" id="sub"></div></div>
+    <a class="volver" href="index.html">← App</a>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="contenido"></div>
+</div>
+
+<script src="storage.js"></script>
+<script src="notes.js"></script>
+<script src="profile.js"></script>
+<script src="seed.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const TABS=[['resumen','Resumen'],['alimentacion','Alimentación'],['actividades','Actividades'],['canciones','Canciones'],['animales','Animales'],['lenguaje','Lenguaje'],['emociones','Emociones'],['lugares','Lugares'],['sobre','Sobre Emma'],['recuerdos','Recuerdos']];
+  let tab='resumen';
+  function render(){
+    if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();
+    EmmaProfile.rebuildProfileFromEntries();
+    $('nombre').textContent=EmmaStore.EMMA.nombre;
+    $('sub').textContent='Nació 17/07/2024 · '+EmmaStore.edadEmma()+' · Estado frecuente: '+(EmmaStore.emocionFrecuente()||'—');
+    $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===tab?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+    $('contenido').innerHTML=EmmaProfile.renderTab(tab);
+  }
+  function setTab(t){tab=t;render();}
+  render();
+</script>
+</body>
+</html>

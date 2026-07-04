@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diario de Emma</title>
+<!--
+  emma-diario.html
+  El diario ahora vive dentro de la app principal (index.html),
+  para que todo el flujo sea más simple en el celular.
+  Esta página solo redirige a index.html.
+-->
+<meta http-equiv="refresh" content="0; url=index.html" />
+<script>location.replace('index.html');</script>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+       background:#faf6f0;color:#3a3330;display:grid;place-items:center;height:100vh;margin:0;text-align:center}
+  a{color:#c67b6a;font-weight:600}
+</style>
+</head>
+<body>
+  <div>
+    <p>El diario ahora está dentro de la app.</p>
+    <p><a href="index.html">Abrir Emma &amp; Papá →</a></p>
+  </div>
+</body>
+</html>

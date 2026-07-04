@@ -1,0 +1,48 @@
+# ============================================================
+#  Blindaje de privacidad para Emma & Papá
+#  Regla: se IGNORA TODO por defecto y solo se publican
+#  explícitamente los archivos de la app.
+#  Así las carpetas personales (Documentos, Fotos, Plan...)
+#  NUNCA se suben a GitHub Pages (que es público).
+# ============================================================
+
+# 1) Ignorar todo lo que hay en la raíz
+/*
+
+# 2) Permitir SOLO los archivos de la app:
+!/.gitignore
+!/index.html
+!/emma-perfil.html
+!/emma-diario.html
+!/manifest.json
+!/service-worker.js
+!/icon.svg
+!/icon-192.png
+!/icon-512.png
+
+# Scripts de la app
+!/storage.js
+!/notes.js
+!/profile.js
+!/seed.js
+!/activities-bank.js
+!/supabase-config.js
+!/supabase-sync.js
+!/ai.js
+!/photos.js
+
+# Guías y esquema
+!/GUIA.md
+!/SUPABASE.md
+!/AI.md
+!/PHOTOS.md
+!/README.md
+!/supabase-schema.sql
+
+# Edge Function de IA (no expone secretos; las claves van como secrets en Supabase)
+!/supabase
+!/supabase/**
+
+# Nunca subir basura del sistema
+.DS_Store
+**/.DS_Store
