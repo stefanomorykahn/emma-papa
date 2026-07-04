@@ -246,6 +246,8 @@
       <button class="btn-actualizar" id="btnUpdHome" onclick="actualizarPerfil('btnUpdHome')">↻ Actualizar perfil</button>
     </div>
 
+    <div id="recordatorioHoy"></div>
+    <div id="recuerdoHoy"></div>
     <div class="ultimo-emma" id="ultimoEmma"></div>
   </section>
 
@@ -433,8 +435,8 @@
     <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" />
     <div class="login-error" id="loginError"></div>
     <button class="guardar" id="loginBtn" onclick="hacerLogin()">Entrar</button>
-    <p class="login-nota"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a></p>
-    <p class="login-nota"><a href="#" onclick="document.getElementById('loginOverlay').classList.remove('show');return false;">Seguir sin cuenta</a> · tus datos se guardan en este dispositivo.</p>
+    <button class="mini" style="margin-top:8px" onclick="continuarSinSync()">Continuar sin sincronizar</button>
+    <p class="login-nota"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a> · tus datos se guardan en este dispositivo.</p>
   </div>
 </div>
 
@@ -1053,6 +1055,7 @@ function renderInicio(){
   const lu=EmmaStore.getMeta().lastProfileUpdate;
   $('statUpd').textContent=lu?new Date(lu).toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'Nunca';
   $('updLine').textContent=lu?('Última actualización: '+new Date(lu).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Toca para organizar la info de Emma';
+  renderRecordatorio();renderRecuerdo();
   // Último de Emma (hasta 3 datos)
   const food=EmmaProfile.getRecentItems('foods',1)[0];const act=EmmaProfile.getRecentItems('activities',1)[0];
   const word=EmmaProfile.getRecentItems('language',1)[0];const song=EmmaProfile.getTopItems('songs',1)[0];const calm=EmmaProfile.getRecentItems('calming',1)[0];
@@ -1066,17 +1069,49 @@ function renderInicio(){
   ue.innerHTML='<h3>Último de Emma</h3>'+(lines.length?lines.slice(0,3).map(l=>`<div class="ue-item"><span>${esc(l[0])}</span><span class="est">${esc(l[1])}</span></div>`)
     .join(''):'<div class="empty" style="padding:14px 6px"><div class="es">Todavía no hay datos. Registra el primer momento.</div><button class="mini" onclick="ir(\'rapido\')">Registrar ahora</button></div>');
 }
+/* ===== Recordatorio de hoy ===== */
+function renderRecordatorio(){const box=$('recordatorioHoy');if(!box)return;
+  const hayHoy=EmmaStore.getEntries().some(e=>e.date===hoyISO()&&!e.deleted);
+  box.innerHTML=hayHoy?'':`<div class="p-bloque" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px"><div><b>Aún no registras un momento de hoy</b><div class="pi-meta">Un ratito basta 🤍</div></div><button class="mini" onclick="ir('rapido')">Registrar ahora</button></div>`;}
+/* ===== Recuerdo de hoy (estable durante el día) ===== */
+function pickRecuerdo(){
+  const hoy=hoyISO();const md=hoy.slice(5);
+  const esBol=p=>((p.tags||[]).some(t=>/boleta|gasto|pago/i.test(String(t))));
+  const fotos=(EmmaStore.getPhotos()||[]).filter(p=>!p.deleted&&p.date&&p.date<hoy&&!esBol(p));
+  const notas=(window.EmmaNotes?EmmaNotes.getNotes():[]).filter(n=>!n.deleted&&n.date&&n.date<hoy&&(n.text||'').trim());
+  const cand=[];
+  fotos.forEach(p=>cand.push({tipo:'foto',date:p.date,texto:p.title||'Una foto de Emma',foto:p,peso:(p.isFavorite?3:1)+(p.date.slice(5)===md?2:0)}));
+  notas.forEach(n=>cand.push({tipo:'nota',date:n.date,texto:(n.text||'').replace(/\s+/g,' ').slice(0,120),peso:(n.isImportant?2:0.6)+(n.date.slice(5)===md?2:0)}));
+  if(!cand.length)return null;
+  const maxP=Math.max.apply(null,cand.map(c=>c.peso));
+  const top=cand.filter(c=>c.peso>=maxP-0.001);
+  let seed=0;for(let i=0;i<hoy.length;i++)seed=(seed*31+hoy.charCodeAt(i))>>>0;
+  return top[seed%top.length];}
+function renderRecuerdo(){const box=$('recuerdoHoy');if(!box)return;
+  const r=pickRecuerdo();if(!r){box.innerHTML='';return;}
+  const dias=Math.max(1,Math.round((new Date(hoyISO())-new Date(r.date))/86400000));
+  const hace=dias>=330?('hace '+Math.max(1,Math.round(dias/365))+' año'+(dias>=660?'s':'')):dias>=28?('hace '+Math.round(dias/30)+' mes'+(dias>=56?'es':'')):('hace '+dias+' día'+(dias>1?'s':''));
+  box.innerHTML=`<div class="p-bloque" style="margin-bottom:14px"><div class="pi-meta">✨ Recuerdo · ${fechaCorta(r.date)} · ${hace}</div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px">${r.tipo==='foto'?`<div id="recThumb" style="width:52px;height:52px;flex:none;border-radius:10px;background:var(--acento-suave);display:grid;place-items:center;font-size:20px">📷</div>`:''}<div class="cuerpo" style="flex:1;margin:0">${esc(r.texto)}</div><button class="mini" onclick="verRecuerdo('${r.tipo}','${r.foto?r.foto.id:''}')">Ver</button></div></div>`;
+  if(r.tipo==='foto'&&window.EmmaPhotos&&r.foto&&EmmaPhotos.getThumb)EmmaPhotos.getThumb(r.foto).then(u=>{if(!u)return;const el=$('recThumb');if(el)el.innerHTML='<img src="'+u+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px">';}).catch(()=>{});}
+function verRecuerdo(tipo,id){if(tipo==='foto'&&id&&typeof openSheet==='function')openSheet(id);else if(tipo==='foto')ir('galeria');else ir('notas');}
 
 /* ===== Estado / login ===== */
+function _skipLogin(){try{return sessionStorage.getItem('emmaSkipLogin')==='1';}catch(e){return false;}}
+function continuarSinSync(){try{sessionStorage.setItem('emmaSkipLogin','1');}catch(e){}$('loginOverlay').classList.remove('show');actualizarEstado();}
 function actualizarEstado(){const el=$('estadoGuardado');
-  if(window.EmmaSync&&EmmaSync.configured){const s=EmmaSync.state;const off=(s==='offline'||s==='error'||s==='local');el.innerHTML='<span class="punto '+(off?'offline':'')+'"></span> '+EmmaSync.statusText();}
+  if(window.EmmaSync&&EmmaSync.configured){
+    const noLog=!EmmaSync.isSignedIn();
+    let txt=EmmaSync.statusText();if(noLog&&_skipLogin())txt='Sin sincronizar';
+    const s=EmmaSync.state;const off=(s==='offline'||s==='error'||s==='local'||noLog);
+    el.innerHTML='<span class="punto '+(off?'offline':'')+'"></span> '+txt;}
   else el.innerHTML=navigator.onLine?'<span class="punto"></span> Guardado':'<span class="punto offline"></span> Sin conexión';}
 window.addEventListener('online',actualizarEstado);window.addEventListener('offline',actualizarEstado);
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
-  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
 // La sesión caducó durante el sync (no es error de red): avisa y abre el login.
-function avisarSesionExpirada(){$('loginError').textContent='Tu sesión expiró, vuelve a iniciar sesión.';$('loginOverlay').classList.add('show');toast('Tu sesión expiró');renderAjustes();}
+function avisarSesionExpirada(){actualizarEstado();if(_skipLogin()){renderAjustes();return;}$('loginError').textContent='Tu sesión expiró, vuelve a iniciar sesión.';$('loginOverlay').classList.add('show');toast('Tu sesión expiró');renderAjustes();}
 function abrirCambioPwd(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}$('pwdNew').value='';$('pwdNew2').value='';$('pwdError').textContent='';$('pwdOverlay').classList.add('show');}
 // Si el usuario llegó desde el enlace de recuperación del email (#...type=recovery&access_token=...),
 // guarda esa sesión temporal y abre "Cambiar contraseña" para definir una nueva.
@@ -1132,7 +1167,7 @@ function init(){
   ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));
   $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
   rebuildProfile();
-  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;EmmaSync.onSessionExpired=avisarSesionExpirada;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
+  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;EmmaSync.onSessionExpired=avisarSesionExpirada;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn()&&!_skipLogin())$('loginOverlay').classList.add('show');}
   window.onPhotoQueued=function(){if($('v-galeria')&&$('v-galeria').classList.contains('activa'))renderGaleria();};
   window.onPhotosFlushed=function(n){toast(n+' foto'+(n>1?'s':'')+' subida'+(n>1?'s':'')+' ✓');rebuildProfile();if($('v-galeria')&&$('v-galeria').classList.contains('activa'))renderGaleria();};
   actualizarEstado();renderInicio();
