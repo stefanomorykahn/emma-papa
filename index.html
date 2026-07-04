@@ -958,23 +958,20 @@ function _normTok(s){return String(s||'').toLowerCase().normalize('NFD').replace
 function _arr(v){return Array.isArray(v)?v:(v?[v]:[]);}
 function getMilestones(){
   const entries=(EmmaStore.getEntries()||[]).filter(e=>!e.deleted&&e.date).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')); // ascendente
-  const seen={w:{},f:{},a:{},p:{}};const out=[];
+  const seen={w:{},f:{},a:{}};const out=[];
   entries.forEach(e=>{
     _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k])return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
     [].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(!k||seen.f[k])return;seen.f[k]=1;out.push({date:e.date,type:'comida',text:'Primera vez que probó: '+f});});
     _arr(e.activities).forEach(a=>{if(a==='Otro')return;const k=_normTok(a);if(!k||seen.a[k])return;seen.a[k]=1;out.push({date:e.date,type:'actividad',text:'Nueva actividad: '+a});});
-    _arr(e.places).forEach(p=>{const k=_normTok(p);if(!k||seen.p[k])return;seen.p[k]=1;out.push({date:e.date,type:'lugar',text:'Nuevo lugar: '+p});});
-    if(e.tenderMoment&&String(e.tenderMoment).trim())out.push({date:e.date,type:'tierno',text:'Momento tierno: '+String(e.tenderMoment).trim().slice(0,100)});
-    if(e.newLearning&&String(e.newLearning).trim())out.push({date:e.date,type:'avance',text:'Avance: '+String(e.newLearning).trim().slice(0,100)});
     const nota=(e.note||'').trim();if(nota&&/primera vez/i.test(nota))out.push({date:e.date,type:'primera',text:nota.slice(0,120)});
   });
   (window.EmmaNotes?EmmaNotes.getNotes():[]).filter(n=>!n.deleted&&n.date&&(n.text||'').trim()).forEach(n=>{const t=(n.text||'').trim();if(n.isImportant||/primera vez/i.test(t))out.push({date:n.date,type:n.isImportant?'importante':'primera',text:t.slice(0,120)});});
   out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // más reciente primero
   return out;}
-function _tipoHito(t){return({palabra:'🗣️ Palabra',comida:'🍎 Comida',actividad:'🎨 Actividad',lugar:'📍 Lugar',tierno:'💛 Ternura',avance:'✨ Avance',primera:'⭐ Primera vez',importante:'⭐ Importante'})[t]||t;}
+function _tipoHito(t){return({palabra:'🗣️ Palabra',comida:'🍎 Comida',actividad:'🎨 Actividad',primera:'⭐ Primera vez',importante:'⭐ Importante'})[t]||t;}
 function renderHitos(){
   const m=getMilestones();
-  if(!m.length)return '<p class="p-vacio">Aún no hay hitos. Registra momentos con palabras, comidas, actividades o lugares nuevos.</p>';
+  if(!m.length)return '<p class="p-vacio">Aún no hay hitos. Registra momentos con palabras, comidas o actividades nuevas.</p>';
   return m.map(h=>`<div class="p-bloque" style="margin-bottom:10px"><div class="pi-meta">${_tipoHito(h.type)} · ${fechaCorta(h.date)}</div><div class="cuerpo" style="margin-top:4px">${esc(h.text)}</div></div>`).join('');}
 /* ===== Tendencias (últimas 6 semanas) ===== */
 function _ymd(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
@@ -983,16 +980,16 @@ function computeTendencias(){
   const POS=['Feliz','Tranquila','Cariñosa','Juguetona','Curiosa'];
   const entries=(EmmaStore.getEntries()||[]).filter(e=>!e.deleted&&e.date);
   const base=new Date(hoyISO()+'T00:00:00');const dow=(base.getDay()+6)%7;base.setDate(base.getDate()-dow);
-  const semanas=[];for(let i=5;i>=0;i--){const d=new Date(base);d.setDate(d.getDate()-i*7);semanas.push({wk:_ymd(d),lbl:d.toLocaleDateString('es-ES',{day:'numeric',month:'short'}),total:0,pos:0});}
+  const semanas=[];for(let i=5;i>=0;i--){const d=new Date(base);d.setDate(d.getDate()-i*7);semanas.push({wk:_ymd(d),lbl:d.toLocaleDateString('es-ES',{day:'numeric',month:'short'}),total:0,pos:0,moodN:0});}
   const idx={};semanas.forEach((s,i)=>idx[s.wk]=i);let acept=0,rech=0;
-  entries.forEach(e=>{const w=_lunesDe(e.date);if(w in idx){const b=semanas[idx[w]];b.total++;if(POS.indexOf(e.mood)>=0)b.pos++;const fr=e.food_result||'';if(fr==='Le gustó')acept++;else if(fr==='No le gustó')rech++;}});
+  entries.forEach(e=>{const w=_lunesDe(e.date);if(w in idx){const b=semanas[idx[w]];b.total++;if(e.mood){b.moodN++;if(POS.indexOf(e.mood)>=0)b.pos++;}const fr=e.food_result||'';if(fr==='Le gustó')acept++;else if(fr==='No le gustó')rech++;}});
   return {semanas,acept,rech};}
 function renderTendencias(){
   const t=computeTendencias();
   const hayAlgo=t.semanas.some(s=>s.total>0)||t.acept||t.rech;
   if(!hayAlgo)return '<p class="p-vacio">Aún no hay suficientes registros para ver tendencias.</p>';
   const barra=(label,pct,val)=>`<div class="bar-row"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(0,Math.min(100,Math.round(pct)))}%"></span></span><span class="bar-val">${esc(String(val))}</span></div>`;
-  const anim=t.semanas.map(s=>barra(s.lbl,s.total?s.pos/s.total*100:0,s.total?Math.round(s.pos/s.total*100)+'%':'—')).join('');
+  const anim=t.semanas.map(s=>barra(s.lbl,s.moodN?s.pos/s.moodN*100:0,s.moodN?Math.round(s.pos/s.moodN*100)+'%':'—')).join('');
   const maxC=Math.max(1,t.acept,t.rech);
   const com=barra('Aceptadas',t.acept/maxC*100,t.acept)+barra('Rechazadas',t.rech/maxC*100,t.rech);
   const maxM=Math.max(1,...t.semanas.map(s=>s.total));
