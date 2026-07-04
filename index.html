@@ -629,13 +629,15 @@ function rangoPeriodo(){
 function mesCorto(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'short'})+(gastoPeriodo==='todo'?" '"+String(y).slice(2):'');}
 let gastoSoloDup=false;
 function gastoTotalRango(d1,d2){return EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=d1&&d<=d2;}).reduce((s,e)=>s+(Number(e.amount)||0),0);}
+// Monto corto en "k", redondeado hacia arriba al siguiente cien (6543→"6.6k", 7000→"7k", 511→"0.6k").
+function kCorto(n){n=Math.ceil((Number(n)||0)/100)*100;if(n<=0)return '';const k=n/1000;return (Number.isInteger(k)?k:k.toFixed(1))+'k';}
 // Gráfico de barras verticales de los 12 meses del año.
 function graficoAnual(anio){
   const ini=['E','F','M','A','M','J','J','A','S','O','N','D'];const tot=Array(12).fill(0);
   EmmaStore.getExpenses().forEach(e=>{const d=e.date||'';if(d.slice(0,4)===String(anio)){const mi=parseInt(d.slice(5,7),10)-1;if(mi>=0&&mi<12)tot[mi]+=Number(e.amount)||0;}});
   const totalAnio=tot.reduce((a,b)=>a+b,0);if(totalAnio<=0)return '';
   const max=Math.max(1,...tot);const mesAct=(new Date().getFullYear()===anio)?new Date().getMonth():-1;
-  const cols=tot.map((t,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px" title="${ini[i]}: ${moneda(t)}"><div style="width:100%;height:90px;display:flex;align-items:flex-end"><div style="width:64%;margin:0 auto;height:${Math.round(t/max*100)}%;min-height:${t>0?3:0}px;background:${i===mesAct?'var(--acento)':'var(--acento-2)'};border-radius:4px 4px 0 0;opacity:${t>0?1:.22};transition:height .3s"></div></div><div class="pi-meta" style="font-size:10px${i===mesAct?';color:var(--acento);font-weight:700':''}">${ini[i]}</div></div>`).join('');
+  const cols=tot.map((t,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="${ini[i]}: ${moneda(t)}"><div style="height:13px;font-size:9px;line-height:13px;white-space:nowrap;${i===mesAct?'color:var(--acento);font-weight:700':'color:var(--suave)'}">${t>0?kCorto(t):''}</div><div style="width:100%;height:78px;display:flex;align-items:flex-end"><div style="width:64%;margin:0 auto;height:${Math.round(t/max*100)}%;min-height:${t>0?3:0}px;background:${i===mesAct?'var(--acento)':'var(--acento-2)'};border-radius:4px 4px 0 0;opacity:${t>0?1:.22};transition:height .3s"></div></div><div class="pi-meta" style="font-size:10px${i===mesAct?';color:var(--acento);font-weight:700':''}">${ini[i]}</div></div>`).join('');
   return `<div style="margin-top:14px;border-top:1px solid var(--linea);padding-top:12px"><div class="pi-meta" style="margin-bottom:8px">Gastos ${anio} · <b style="color:var(--texto)">${moneda(totalAnio)}</b></div><div style="display:flex;align-items:flex-end;gap:3px">${cols}</div></div>`;
 }
 // Detecta posibles duplicados: mismo día, monto, categoría y descripción. Devuelve los "extras".
