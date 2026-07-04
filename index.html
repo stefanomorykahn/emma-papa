@@ -295,7 +295,8 @@
   <!-- ===== GASTOS ===== -->
   <section class="vista" id="v-gastos">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Gastos de Emma</h2></div>
-    <p class="pi-meta" style="text-align:center;margin:2px 0 6px">Los gastos se registran al guardar un momento (monto + boleta).</p>
+    <button class="btn-full" onclick="abrirNuevoGasto()" style="margin:4px 0 6px;box-shadow:var(--sombra)"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span> Agregar gasto</button>
+    <p class="pi-meta" style="text-align:center;margin:0 0 8px">También se registran al guardar un momento.</p>
     <div class="chips scroll" id="x-periodo" style="margin-top:6px;margin-bottom:10px"></div>
     <div id="x-rango"><input type="date" id="x-desde" onchange="renderGastos()" /><input type="date" id="x-hasta" onchange="renderGastos()" /></div>
     <div class="p-bloque" id="gastoResumen"></div>
@@ -306,6 +307,7 @@
   <section class="vista" id="v-galeria">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Galería</h2>
       <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button></div>
+    <div class="chips" id="g-seccion" style="margin-bottom:10px"></div>
     <input type="text" class="buscar" id="g-buscar" placeholder="Buscar por título, tag o descripción…" oninput="renderGaleria()" />
     <div class="chips scroll" id="g-filtros" style="margin-bottom:14px;"></div>
     <div id="g-grid"></div>
@@ -354,6 +356,11 @@
     <div id="syncBox"></div>
     <div id="aiBox"></div>
     <div id="driveBox"></div>
+
+    <div class="grupo-btns"><h3>Categorías de gastos</h3>
+      <div id="gastoCatsBox" class="chips" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px"><input type="text" id="nuevaCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoria();}" /><button class="mini" onclick="agregarCategoria()">＋ Agregar</button></div>
+    </div>
 
     <div class="grupo-btns"><h3>Ver</h3>
       <button class="btn-full" onclick="ir('historial')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 4h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 5.5V19"/></svg></span> Historial</button>
@@ -416,6 +423,22 @@
     <div class="login-error" id="pwdError"></div>
     <button class="guardar" id="pwdBtn" onclick="hacerCambioPwd()">Guardar contraseña</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('pwdOverlay').classList.remove('show');return false;">Cancelar</a></p>
+  </div>
+</div>
+
+<div class="login-overlay" id="gastoOverlay">
+  <div class="login-card"><div class="login-logo">💵</div><h2>Nuevo gasto</h2>
+    <div class="fecha-linea" style="justify-content:center"><span>Fecha:</span><input type="date" id="x-date" /></div>
+    <div class="campo" style="text-align:left"><label>Monto (S/)</label><input type="text" id="x-monto" inputmode="decimal" placeholder="Ej. 25.50" /></div>
+    <div class="campo" style="text-align:left"><label>Categoría</label><div class="chips" id="x-cat"></div></div>
+    <div class="campo" style="text-align:left"><label>Descripción <span class="op">(opcional)</span></label><input type="text" id="x-desc" placeholder="Ej. pañales, juguete" /></div>
+    <div class="campo" style="text-align:left"><label>Constancia / boleta <span class="op">(opcional)</span></label>
+      <div class="foto-chips" id="x-foto"></div>
+      <button type="button" class="mini" onclick="pickGastoFoto()">＋ Foto de la boleta</button>
+      <input type="file" id="x-foto-input" accept="image/*" style="display:none" onchange="onGastoFotoPick(event)" />
+    </div>
+    <button class="guardar" onclick="guardarGasto()">Guardar gasto</button>
+    <p class="login-nota"><a href="#" onclick="document.getElementById('gastoOverlay').classList.remove('show');return false;">Cancelar</a></p>
   </div>
 </div>
 
@@ -523,7 +546,11 @@ function guardarComida(){
 }
 
 /* ===== Gastos (S/) ===== */
-const GASTO_CATS=['Comida','Ropa','Pañales','Juguetes','Salud','Colegio','Actividades','Transporte','Regalos','Otro'];
+const GASTO_CATS_DEFAULT=['Comida','Ropa','Pañales','Juguetes','Salud','Colegio','Actividades','Transporte','Regalos','Otro'];
+function getGastoCats(){try{const a=JSON.parse(localStorage.getItem('emmaGastoCats'));return(Array.isArray(a)&&a.length)?a:GASTO_CATS_DEFAULT.slice();}catch(e){return GASTO_CATS_DEFAULT.slice();}}
+function setGastoCats(a){localStorage.setItem('emmaGastoCats',JSON.stringify(a));}
+function addGastoCat(nombre){nombre=(nombre||'').trim();if(!nombre)return false;const a=getGastoCats();if(a.some(c=>c.toLowerCase()===nombre.toLowerCase()))return false;a.push(nombre);setGastoCats(a);return true;}
+function removeGastoCat(i){const a=getGastoCats();if(i<0||i>=a.length)return;a.splice(i,1);setGastoCats(a);}
 let gastoSel={cat:''}; let gastoFoto=null; // {file?,url?,previewUrl}
 function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
 function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
@@ -549,9 +576,21 @@ async function guardarGasto(){
       if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
     }catch(err){toast('No se pudo subir la boleta');}
   }
-  gastoSel={cat:''};$('x-monto').value='';$('x-desc').value='';
-  toast('Gasto guardado ✓');initGastos();
+  gastoSel={cat:''};$('x-monto').value='';$('x-desc').value='';renderGastoFotoPrev();
+  const ov=$('gastoOverlay');if(ov)ov.classList.remove('show');
+  toast('Gasto guardado ✓');renderGastos();
 }
+function abrirNuevoGasto(){
+  gastoSel={cat:''};gastoFoto=null;
+  $('x-monto').value='';$('x-desc').value='';$('x-date').value=hoyISO();
+  chipsSingle('x-cat',getGastoCats(),'cat',gastoSel);
+  renderGastoFotoPrev();
+  $('gastoOverlay').classList.add('show');
+}
+function renderCategorias(){const c=$('gastoCatsBox');if(!c)return;const cats=getGastoCats();
+  c.innerHTML=cats.length?cats.map((cat,i)=>`<span class="chip">${esc(cat)}<button onclick="eliminarCategoria(${i})" title="Quitar" style="margin-left:6px;border:none;background:none;color:var(--suave);cursor:pointer;font-size:15px;line-height:1;padding:0">×</button></span>`).join(''):'<span class="pi-meta">Sin categorías.</span>';}
+function agregarCategoria(){const inp=$('nuevaCatInput');if(addGastoCat(inp.value)){inp.value='';renderCategorias();toast('Categoría agregada ✓');}else toast('Ya existe o está vacía');}
+function eliminarCategoria(i){const cats=getGastoCats();const nombre=cats[i];if(nombre==null)return;if(!confirm('¿Quitar la categoría "'+nombre+'"?'))return;removeGastoCat(i);renderCategorias();}
 let gastoPeriodo='mes';
 const PERIODOS=[['mes','Este mes'],['anterior','Mes pasado'],['anio','Este año'],['todo','Todo'],['rango','Rango…']];
 function setGastoPeriodo(k){gastoPeriodo=k;$('x-rango').style.display=(k==='rango')?'flex':'none';
@@ -675,7 +714,10 @@ async function procesarFotos(entry){
 }
 
 /* ===== Galería ===== */
-let galFiltro='todas';
+let galFiltro='todas'; let galSeccion='emma';
+const GSECCIONES=[['emma','🧒 Fotos de Emma'],['boletas','🧾 Boletas']];
+function esBoleta(p){return (p.tags||[]).some(t=>/boleta|gasto/i.test(String(t)));}
+function setGalSeccion(s){galSeccion=s;galFiltro='todas';renderGaleria();}
 const GFILTROS=[['todas','Todas'],['fav','Favoritas'],['papa','Papá'],['mama','Mamá'],['familia','Familia'],['actividades','Actividades'],['comida','Comida'],['colegio','Colegio'],['natacion','Natación'],['recuerdos','Recuerdos'],['primera','Primera vez']];
 function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 function fotoMatch(p,key){
@@ -686,9 +728,11 @@ function fotoMatch(p,key){
   return kw?t.includes(kw):true;
 }
 function renderGaleria(){
+  $('g-seccion').innerHTML=GSECCIONES.map(([k,l])=>`<span class="chip${k===galSeccion?' on':''}" onclick="setGalSeccion('${k}')">${l}</span>`).join('');
   $('g-filtros').innerHTML=GFILTROS.map(([k,l])=>`<span class="chip${k===galFiltro?' on':''}" onclick="setGalFiltro('${k}')">${l}</span>`).join('');
   const q=normTxt($('g-buscar').value.trim());
   let fotos=EmmaStore.getPhotos().slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  fotos=fotos.filter(p=>galSeccion==='boletas'?esBoleta(p):!esBoleta(p));
   fotos=fotos.filter(p=>fotoMatch(p,galFiltro));
   if(q)fotos=fotos.filter(p=>normTxt((p.tags||[]).join(' ')+' '+p.title+' '+p.description).includes(q));
   const grid=$('g-grid');
@@ -701,11 +745,12 @@ function renderGaleria(){
 }
 function setGalFiltro(k){galFiltro=k;renderGaleria();}
 function agregarFotoLibre(){
+  const tags=galSeccion==='boletas'?['boleta','gasto']:['recuerdo'];
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){
     const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{date:hoyISO(),tags:['recuerdo']});toast('Foto guardada ✓');renderGaleria();}catch(err){toast('Error: '+(err.message||''));}};
+    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{date:hoyISO(),tags});toast('Foto guardada ✓');renderGaleria();}catch(err){toast('Error: '+(err.message||''));}};
     inp.click();
-  }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{date:hoyISO(),tags:['recuerdo']});renderGaleria();toast('Foto guardada ✓');}}
+  }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{date:hoyISO(),tags});renderGaleria();toast('Foto guardada ✓');}}
 }
 function openSheet(id){
   const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;
@@ -869,7 +914,7 @@ function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new 
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
-function renderAjustes(){const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+function renderAjustes(){renderCategorias();const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}
