@@ -627,23 +627,53 @@ function rangoPeriodo(){
   return{desde:'0000-01-01',hasta:'9999-12-31',label:'todo'};
 }
 function mesCorto(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'short'})+(gastoPeriodo==='todo'?" '"+String(y).slice(2):'');}
+function gastoTotalRango(d1,d2){return EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=d1&&d<=d2;}).reduce((s,e)=>s+(Number(e.amount)||0),0);}
+function rangoAnterior(){const d=new Date();const y=d.getFullYear();
+  if(gastoPeriodo==='mes'){const m=new Date(y,d.getMonth()-1,1).toISOString().slice(0,7);return{d1:m+'-01',d2:m+'-31',lbl:'mes pasado'};}
+  if(gastoPeriodo==='anterior'){const m=new Date(y,d.getMonth()-2,1).toISOString().slice(0,7);return{d1:m+'-01',d2:m+'-31',lbl:'el mes previo'};}
+  if(gastoPeriodo==='anio')return{d1:(y-1)+'-01-01',d2:(y-1)+'-12-31',lbl:''+(y-1)};
+  return null;}
 function renderGastos(){
   $('x-periodo').innerHTML=PERIODOS.map(([k,l])=>`<span class="chip${k===gastoPeriodo?' on':''}" onclick="setGastoPeriodo('${k}')">${l}</span>`).join('');
   const {desde,hasta,label}=rangoPeriodo();
   const list=EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=desde&&d<=hasta;})
     .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-  const total=list.reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const total=list.reduce((s,e)=>s+(Number(e.amount)||0),0);const count=list.length;
+  const promGasto=count?total/count:0;
+  // promedio por día (desde el primer gasto hasta hoy o fin de periodo)
+  const hoy=hoyISO();const fechas=list.map(e=>e.date).filter(Boolean).sort();
+  const desdeEf=fechas.length?fechas[0]:desde;const finEf=(hasta<hoy?hasta:hoy);
+  const dias=Math.max(1,Math.round((new Date(finEf)-new Date(desdeEf))/86400000)+1);
+  const promDia=total/dias;
+  // proyección (solo el mes en curso)
+  let proyeccion=null;
+  if(gastoPeriodo==='mes'&&count){const dd=new Date();const diaAct=dd.getDate();const diasMes=new Date(dd.getFullYear(),dd.getMonth()+1,0).getDate();proyeccion=diaAct?total/diaAct*diasMes:total;}
+  // día más caro
+  const porDia={};list.forEach(e=>{const d=e.date||'';if(d)porDia[d]=(porDia[d]||0)+(Number(e.amount)||0);});
+  const maxDia=Object.values(porDia).length?Math.max(...Object.values(porDia)):0;
+  // comparación con el periodo anterior
+  const ant=rangoAnterior();let vsHtml='';
+  if(ant){const prev=gastoTotalRango(ant.d1,ant.d2);
+    if(prev>0){const c=Math.round((total-prev)/prev*100);vsHtml=` · <span style="color:${c>0?'var(--acento)':'var(--ok)'};font-weight:600">${c>0?'↑':'↓'} ${Math.abs(c)}% vs ${ant.lbl}</span>`;}
+    else if(total>0)vsHtml=` · <span class="pi-meta">nuevo vs ${ant.lbl}</span>`;}
+  // por categoría (barras + %)
   const porCat={};list.forEach(e=>{const c=e.category||'Otro';porCat[c]=(porCat[c]||0)+(Number(e.amount)||0);});
-  const desglose=Object.entries(porCat).sort((a,b)=>b[1]-a[1])
-    .map(([c,m])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:14px"><span>${esc(c)}</span><b>${moneda(m)}</b></div>`).join('');
+  const cats=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);const maxCat=cats.length?cats[0][1]:0;
+  const catHtml=cats.length?'<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por categoría</div>'+
+    cats.map(([c,m])=>`<div class="bar-row"><span class="bar-label">${esc(c)}</span><span class="bar-track"><span class="bar-fill" style="width:${maxCat?Math.round(m/maxCat*100):0}%"></span></span><span class="bar-val">${moneda(m)} <span class="pi-meta">${total?Math.round(m/total*100):0}%</span></span></div>`).join('')+'</div>':'';
+  // por mes (barras)
   const porMes={};list.forEach(e=>{const m=(e.date||'').slice(0,7);if(m)porMes[m]=(porMes[m]||0)+(Number(e.amount)||0);});
-  const meses=Object.keys(porMes).sort();
-  let barras='';
+  const meses=Object.keys(porMes).sort();let barras='';
   if(meses.length>1){const max=Math.max(...meses.map(m=>porMes[m]));
     barras='<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por mes</div>'+
       meses.map(m=>`<div class="bar-row"><span class="bar-label">${mesCorto(m)}</span><span class="bar-track"><span class="bar-fill" style="width:${max?Math.round(porMes[m]/max*100):0}%"></span></span><span class="bar-val">${moneda(porMes[m])}</span></div>`).join('')+'</div>';
   }
-  $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:24px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${list.length} gasto${list.length!==1?'s':''}</div>${desglose?`<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:8px">${desglose}</div>`:''}${barras}`;
+  // métricas rápidas
+  const tercer=proyeccion!=null
+    ?`<div class="stat"><div class="n" style="font-size:15px">${moneda(proyeccion)}</div><div class="l">proyección mes</div></div>`
+    :`<div class="stat"><div class="n" style="font-size:15px">${maxDia?moneda(maxDia):'—'}</div><div class="l">día más caro</div></div>`;
+  const statsHtml=count?`<div class="stats3" style="margin-top:12px"><div class="stat"><div class="n" style="font-size:15px">${moneda(promGasto)}</div><div class="l">por gasto</div></div><div class="stat"><div class="n" style="font-size:15px">${moneda(promDia)}</div><div class="l">por día</div></div>${tercer}</div>`:'';
+  $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:26px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${count} gasto${count!==1?'s':''}${vsHtml}</div>${statsHtml}${catHtml}${barras}`;
   const cont=$('gastoLista');
   if(!list.length){cont.innerHTML='<p class="p-vacio">Sin gastos en este periodo.</p>';return;}
   cont.innerHTML=list.map(e=>`<div class="entrada"><div class="top"><span class="fecha">${moneda(e.amount)}</span><span class="badge">${esc(e.category||'Otro')}</span></div>
