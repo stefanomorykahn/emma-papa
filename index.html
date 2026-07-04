@@ -272,11 +272,13 @@
     <div class="campo"><label>Constancia / boleta <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-boleta"></div>
       <button type="button" class="mini" onclick="pickBoleta()">＋ Foto de la boleta</button>
+      <button type="button" class="mini" onclick="pegarEnlaceBoleta()">🔗 Pegar enlace</button>
       <input type="file" id="r-boleta-input" accept="image/*" style="display:none" onchange="onBoletaPick(event)" />
     </div>
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
+      <button type="button" class="mini" onclick="pegarEnlaceFoto()">🔗 Pegar enlace</button>
       <input type="file" id="r-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
     <button class="guardar" id="r-guardar" onclick="guardarRapido()" disabled>Guardar</button>
@@ -308,6 +310,7 @@
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="c-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
+      <button type="button" class="mini" onclick="pegarEnlaceFoto()">🔗 Pegar enlace</button>
       <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
     <button class="guardar" onclick="guardarComida()">Guardar comida</button>
@@ -327,7 +330,8 @@
   <!-- ===== GALERÍA ===== -->
   <section class="vista" id="v-galeria">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Galería</h2>
-      <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button></div>
+      <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button>
+      <button class="btn-actualizar" onclick="agregarFotoLibreEnlace()" title="Pegar enlace de Drive">🔗</button></div>
     <div class="chips" id="g-seccion" style="margin-bottom:10px"></div>
     <div id="g-pendientes"></div>
     <input type="text" class="buscar" id="g-buscar" placeholder="Buscar por título, tag o descripción…" oninput="renderGaleria()" />
@@ -462,6 +466,7 @@
     <div class="campo" style="text-align:left"><label>Constancia / boleta <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="x-foto"></div>
       <button type="button" class="mini" onclick="pickGastoFoto()">＋ Foto de la boleta</button>
+      <button type="button" class="mini" onclick="pegarEnlaceGastoFoto()">🔗 Pegar enlace</button>
       <input type="file" id="x-foto-input" accept="image/*" style="display:none" onchange="onGastoFotoPick(event)" />
     </div>
     <button class="guardar" onclick="guardarGasto()">Guardar gasto</button>
@@ -531,7 +536,7 @@ function guardarRapido(){const g=id=>$(id).value.trim();const foods=comidasFinal
       category:(foods.length?'Comida':'Otro'),description:g('r-nota')||sel.actividades.join(', ')});
     const bo=boletaPendiente; boletaPendiente=null;
     if(bo&&window.EmmaPhotos){(async()=>{try{let ph;
-      if(bo.file){toast('Subiendo boleta…');ph=await EmmaPhotos.addFromFile(bo.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      if(bo.file){ph=await EmmaPhotos.addFromFile(bo.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));}
       else if(bo.url){ph=EmmaPhotos.addFromLink(bo.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
       if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
     }catch(e){toast('No se pudo subir la boleta');}})();}
@@ -585,8 +590,9 @@ function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses
 function initGastos(){ renderGastos(); } // la vista Gastos es solo lectura/analítica; el registro está en "Registrar momento"
 function pickGastoFoto(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$('x-foto-input').click();}
-  else{const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){gastoFoto={url:u.trim(),previewUrl:''};renderGastoFotoPrev();}}
+  else pegarEnlaceGastoFoto();
 }
+function pegarEnlaceGastoFoto(){const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){gastoFoto={url:u.trim(),previewUrl:''};renderGastoFotoPrev();}}
 function onGastoFotoPick(ev){const f=ev.target.files[0];if(f){gastoFoto={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderGastoFotoPrev();}
 function renderGastoFotoPrev(){const c=$('x-foto');if(!c)return;
   c.innerHTML=gastoFoto?`<div class="foto-prev">${gastoFoto.previewUrl?`<img src="${gastoFoto.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarGastoFoto()">×</button></div>`:'';}
@@ -598,7 +604,7 @@ async function guardarGasto(){
   const f=gastoFoto;gastoFoto=null;
   if(f&&window.EmmaPhotos){
     try{let ph;
-      if(f.file){toast('Subiendo boleta…');ph=await EmmaPhotos.addFromFile(f.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      if(f.file){ph=await EmmaPhotos.addFromFile(f.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));}
       else if(f.url){ph=EmmaPhotos.addFromLink(f.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
       if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
     }catch(err){toast('No se pudo subir la boleta');}
@@ -741,8 +747,9 @@ let boletaPendiente=null; // {file?, url?, previewUrl} — constancia de un gast
 let fotoTarget='r-fotos'; let fotoInputId='r-foto-input';
 function pickFoto(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$(fotoInputId).click();}
-  else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){fotosPendientes.push({url:u.trim(),previewUrl:''});renderFotoPrev();}}
+  else pegarEnlaceFoto();
 }
+function pegarEnlaceFoto(){const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){fotosPendientes.push({url:u.trim(),previewUrl:''});renderFotoPrev();}}
 function onFotoPick(ev){[...ev.target.files].forEach(file=>{fotosPendientes.push({file,previewUrl:URL.createObjectURL(file)});});ev.target.value='';renderFotoPrev();}
 function renderFotoPrev(){
   const c=$(fotoTarget);if(!c)return;
@@ -752,15 +759,16 @@ function renderFotoPrev(){
 function agregarFotoAEntrada(entryId,date,tags){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){
     const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{entryId,date,tags});toast('Foto guardada ✓');rebuildProfile();}catch(err){toast('Error: '+(err.message||''));}};
+    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{await EmmaPhotos.addFromFile(file,{entryId,date,tags},m=>toast(m));rebuildProfile();}catch(err){toast(EmmaPhotos.errMsg?EmmaPhotos.errMsg(err):('Error: '+(err.message||'')));}};
     inp.click();
   }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{entryId,date,tags});toast('Foto guardada ✓');rebuildProfile();}}
 }
 function removeFoto(i){const f=fotosPendientes[i];if(f&&f.previewUrl)try{URL.revokeObjectURL(f.previewUrl);}catch(e){}fotosPendientes.splice(i,1);renderFotoPrev();}
 function pickBoleta(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){document.getElementById('r-boleta-input').click();}
-  else{const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){boletaPendiente={url:u.trim(),previewUrl:''};renderBoletaPrev();}}
+  else pegarEnlaceBoleta();
 }
+function pegarEnlaceBoleta(){const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){boletaPendiente={url:u.trim(),previewUrl:''};renderBoletaPrev();}}
 function onBoletaPick(ev){const f=ev.target.files[0];if(f){boletaPendiente={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderBoletaPrev();}
 function renderBoletaPrev(){const c=document.getElementById('r-boleta');if(!c)return;
   c.innerHTML=boletaPendiente?`<div class="foto-prev">${boletaPendiente.previewUrl?`<img src="${boletaPendiente.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarBoleta()">×</button></div>`:'';}
@@ -820,13 +828,14 @@ function renderGaleria(){
 }
 function setGalFiltro(k){galFiltro=k;renderGaleria();}
 function agregarFotoLibre(){
-  const tags=galSeccion==='boletas'?['boleta','gasto']:['recuerdo'];
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){
+    const tags=galSeccion==='boletas'?['boleta','gasto']:['recuerdo'];
     const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{toast('Subiendo foto…');await EmmaPhotos.addFromFile(file,{date:hoyISO(),tags});toast('Foto guardada ✓');renderGaleria();}catch(err){toast('Error: '+(err.message||''));}};
+    inp.onchange=async e=>{const file=e.target.files[0];if(!file)return;try{await EmmaPhotos.addFromFile(file,{date:hoyISO(),tags},m=>toast(m));renderGaleria();}catch(err){toast(EmmaPhotos.errMsg?EmmaPhotos.errMsg(err):('Error: '+(err.message||'')));}};
     inp.click();
-  }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{date:hoyISO(),tags});renderGaleria();toast('Foto guardada ✓');}}
+  }else agregarFotoLibreEnlace();
 }
+function agregarFotoLibreEnlace(){const tags=galSeccion==='boletas'?['boleta','gasto']:['recuerdo'];const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{date:hoyISO(),tags});renderGaleria();toast('Foto guardada ✓');}}
 function openSheet(id){
   const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;
   const ent=p.entryId?EmmaStore.getEntries().find(e=>e.id===p.entryId):null;
@@ -966,7 +975,7 @@ function getMilestones(){
   entries.forEach(e=>{[].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(k)exclPalabra.add(k);});});
   try{((EmmaStore.getProfileItems&&EmmaStore.getProfileItems())||[]).forEach(it=>{const c=String(it.category||'').toLowerCase();if(c==='food'||c==='fruit'){const k=_normTok(it.name);if(k)exclPalabra.add(k);}});}catch(_){}
   entries.forEach(e=>{
-    _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k]||exclPalabra.has(k))return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
+    _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k]||exclPalabra.has(k)||(window.EmmaProfile&&EmmaProfile.esTokenComida&&EmmaProfile.esTokenComida(w)))return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
     [].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(!k||seen.f[k])return;seen.f[k]=1;out.push({date:e.date,type:'comida',text:'Primera vez que probó: '+f});});
     _arr(e.activities).forEach(a=>{if(a==='Otro')return;const k=_normTok(a);if(!k||seen.a[k])return;seen.a[k]=1;out.push({date:e.date,type:'actividad',text:'Nueva actividad: '+a});});
     const nota=(e.note||'').trim();if(nota&&/primera vez/i.test(nota))out.push({date:e.date,type:'primera',text:nota.slice(0,120)});
@@ -1062,7 +1071,7 @@ function renderAjustes(){renderCategorias();if($('temaLabel')){const t=localStor
   if(window.EmmaPhotos){const st=EmmaPhotos.status();
     if(st.estado==='no-config')db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}<br>Modo enlace (pega links). Para subir desde la app, configura tu Client ID (ver PHOTOS.md).</div></div>`;
     else if(st.estado==='conectado')db.innerHTML=`<div class="sync-box"><div><b>Google Drive conectado</b></div><div class="cuenta">Cuenta: ${esc(st.email||'—')}<br>Carpeta: ${esc(st.folder||'')}<br>Se separan en subcarpetas: <b>Fotos de Emma</b> y <b>Boletas y pagos</b>.</div><div class="fila-btns"><button class="mini" onclick="organizarFotosDrive()">🗂️ Organizar fotos</button><button class="mini del" onclick="desconectarDrive()">Desconectar</button></div></div>`;
-    else db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}</div><button class="mini" onclick="conectarDrive()">Conectar Google Drive</button></div>`;
+    else db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}</div><button class="mini" onclick="conectarDrive()">Conectar Google Drive</button><div class="cuenta" style="margin-top:8px;font-size:12px;line-height:1.4">Si al conectar sale error, revisa en Google Cloud: <b>Drive API habilitada</b>, tu correo en <b>Test users</b>, y el origin <b>https://stefanomorykahn.github.io</b> autorizado.</div></div>`;
   }else db.innerHTML='';
   $('ultimoBackup').innerHTML=lb?'📁 Último backup: <b>'+fechaCorta(lb.slice(0,10))+'</b>':'📁 Aún no has hecho backup.';
   const hay=EmmaStore.getEntries().length>0;const diff=lb?(Date.now()-new Date(lb).getTime())/86400000:999;$('recordatorioBackup').style.display=(hay&&diff>7)?'block':'none';}
@@ -1086,7 +1095,7 @@ function analisisSemanal(){
 }
 
 /* ===== Google Drive ===== */
-function conectarDrive(){toast('Abriendo Google…');EmmaPhotos.connect().then(()=>{renderAjustes();toast('Google Drive conectado ✓');}).catch(e=>toast('No se pudo conectar: '+(e.message||'')));}
+function conectarDrive(){EmmaPhotos.connect(m=>toast(m)).then(()=>{renderAjustes();}).catch(e=>toast(e.message||'No se pudo conectar con Drive'));}
 function desconectarDrive(){EmmaPhotos.disconnect();renderAjustes();toast('Google Drive desconectado');}
 function organizarFotosDrive(){
   if(!(window.EmmaPhotos&&EmmaPhotos.organizarDrive))return;

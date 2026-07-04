@@ -28,6 +28,20 @@ const EmmaPhotos = (function () {
   function _restore() { try { const d = JSON.parse(localStorage.getItem(LS_DRIVE)); if (d) { token = d.token || null; tokenExp = d.tokenExp || 0; email = d.email || ''; consented = !!d.consented; } } catch (e) {} }
   _restore();
 
+  // Traduce errores de GIS/Drive a mensajes claros en español.
+  function errMsg(e) {
+    const s = String((e && (e.message || e.type || e.error)) || e || '').toLowerCase();
+    if (/origin|idpiframe|not[_ ]?allowed|redirect_uri|invalid_client|unregistered/.test(s))
+      return "El dominio no está autorizado en Google Cloud. Agrega https://stefanomorykahn.github.io en 'Authorized JavaScript origins'.";
+    if (/\b403\b|insufficient|permission_denied|api has not been|accessnotconfigured|not.?enabled|disabled/.test(s))
+      return "Falta habilitar Google Drive API o tu correo no está en 'Test users'.";
+    if (/access_denied|popup_closed|user_cancel|dismiss|denied|cancel/.test(s))
+      return "Permiso cancelado. Vuelve a intentar.";
+    const raw = (e && e.message) ? e.message : String(e || 'error');
+    return "Error de Drive: " + raw;
+  }
+  function _toast(m) { try { if (typeof window !== 'undefined' && typeof window.toast === 'function') window.toast(m); } catch (e) {} }
+
   function driveEnabled() { return !!CLIENT_ID; }
   function isConnected() { return !!token && Date.now() < tokenExp - 60000; }
   function account() { return email; }
@@ -73,10 +87,25 @@ const EmmaPhotos = (function () {
     }));
   }
   // Conexión iniciada por el usuario (botón). Si ya consentiste, intenta silencioso; si no, pide consent.
-  async function connect() {
-    if (!CLIENT_ID) throw new Error('Falta GOOGLE_CLIENT_ID (ver PHOTOS.md)');
-    if (consented) { try { return await requestToken(''); } catch (e) { /* silencioso falló → pedir consent */ } }
-    return requestToken('consent');
+  async function connect(onState) {
+    onState = onState || function () {};
+    if (!CLIENT_ID) { const m = 'Falta GOOGLE_CLIENT_ID (ver PHOTOS.md)'; _toast(m); throw new Error(m); }
+    onState('Conectando con Google…');
+    // Si en 8s no hubo respuesta, probablemente el popup no abrió (pop-ups bloqueados).
+    let listo = false;
+    const aviso = setTimeout(() => { if (!listo) _toast('No se abrió la ventana de Google (¿pop-ups bloqueados?)'); }, 8000);
+    try {
+      let tok = null;
+      if (consented) { try { tok = await requestToken(''); } catch (e) { /* silencioso falló → pedir consent */ } }
+      if (!tok) tok = await requestToken('consent');
+      listo = true; clearTimeout(aviso);
+      onState('Google Drive conectado ✓');
+      setTimeout(() => { try { flushQueue(); } catch (e) {} }, 300); // reintenta la última subida pendiente
+      return tok;
+    } catch (e) {
+      listo = true; clearTimeout(aviso);
+      throw new Error(errMsg(e)); // el caller muestra el toast (evita duplicar)
+    }
   }
   function disconnect() {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch (e) {}
@@ -254,15 +283,21 @@ const EmmaPhotos = (function () {
     const { blob, width, height } = await optimize(file);
     const fileName = nombreArchivo(meta.date);
     try {
-      onState('Subiendo a Drive…');
+      onState('Subiendo foto…');
       const photo = await _uploadAndSave(blob, fileName, meta, width, height);
-      onState('Foto guardada');
+      onState('Foto guardada ✓');
       flushQueue(); // de paso, reintenta pendientes
       return photo;
     } catch (e) {
       // NO perder la foto: a la cola para reintentar sola después.
       try { await _qPut({ id: (EmmaStore.uuid ? EmmaStore.uuid() : ('q' + Date.now() + Math.random().toString(36).slice(2))), blob, fileName, meta, width, height, createdAt: Date.now(), attempts: 0 }); } catch (e2) {}
-      onState('Guardada · se subirá luego');
+      // Si es problema de permisos/configuración (no de red), avísalo claro para poder arreglarlo.
+      const s = String((e && e.message) || '').toLowerCase();
+      if (/origin|idpiframe|not[_ ]?allowed|\b403\b|insufficient|permission_denied|access_denied|invalid|token|conecta/.test(s)) {
+        const m = errMsg(e); onState(m); _toast(m);
+      } else {
+        onState('Guardada · se subirá luego');
+      }
       if (typeof window.onPhotoQueued === 'function') { try { window.onPhotoQueued(); } catch (e3) {} }
       return { queued: true };
     }
@@ -304,6 +339,6 @@ const EmmaPhotos = (function () {
   }
 
   return { FOLDER_ID, driveEnabled, isConnected, account, status, connect, disconnect,
-    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken, organizarDrive, ensureSubfolder };
+    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken, organizarDrive, ensureSubfolder, errMsg };
 })();
 if (typeof window !== 'undefined') window.EmmaPhotos = EmmaPhotos;

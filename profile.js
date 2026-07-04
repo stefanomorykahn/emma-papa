@@ -25,6 +25,19 @@ const EmmaProfile = (function () {
   const BASE_ACTIVIDAD = ['Parque','Cuento','Música','Baile','Comida juntos','Oración','Bloques','Playa',
                           'Caminar','Videollamada','Juego libre','Baño','Siesta','Agua','Dibujar'];
 
+  // Nombres de categoría/genéricos que NO son palabras dichas por Emma (se cuelan en newWords).
+  const CAT_GENERICAS = ['fruta','frutas','comida','comidas','bebida','bebidas','snack','snacks',
+    'verdura','verduras','postre','postres','actividad','actividades','lugar','lugares','animal','animales',
+    'cancion','canciones','palabra','palabras','otro','otros','desayuno','almuerzo','cena','merienda','lonche'];
+  // ¿El token es en realidad una comida/fruta/bebida/snack o un nombre de categoría? (no una palabra)
+  function esTokenComida(tok) {
+    const k = norm(tok);
+    if (!k) return false;
+    if (FRUTAS.indexOf(k) >= 0 || BEBIDAS.indexOf(k) >= 0 || SNACKS.indexOf(k) >= 0) return true;
+    if (BASE_COMIDA.some(x => norm(x) === k)) return true;
+    return CAT_GENERICAS.indexOf(k) >= 0;
+  }
+
   const POS = ['encant','le gust','le encant','pidió más','pidio mas','disfrut','feliz','rió','rio',
     'contenta','adora','quería más','queria mas','fascin','sonri','tranquil','calm','ama '];
   const NEG = ['no quiso','no le gust','rechaz','escup','lloró','lloro','no comió','no comio','no aceptó',
@@ -124,7 +137,11 @@ const EmmaProfile = (function () {
       });
       toList(e.rejectedFoods).forEach(f => add(S.foods, 'foods', f, { sentiment: 'neg', date, note: noteTxt }));
       // Lenguaje
-      toList(e.newWords).forEach(w => add(S.language, 'language', w, { sentiment: 'neu', date, note: noteTxt }));
+      toList(e.newWords).forEach(w => {
+        if (esTokenComida(w)) return; // "Fruta", "Manzana"… no son palabras dichas por Emma
+        if (toList(e.foods).concat(toList(e.fruits)).some(f => norm(f) === norm(w))) return; // coincide con comida registrada
+        add(S.language, 'language', w, { sentiment: 'neu', date, note: noteTxt });
+      });
       // Calma
       toList(e.calmingThings).concat(toList(e.calmingThing)).forEach(c => add(S.calming, 'calming', c, { sentiment: 'pos', date, note: noteTxt }));
       // Frustraciones
@@ -336,6 +353,6 @@ const EmmaProfile = (function () {
   }
 
   return { rebuildProfileFromEntries, data, getTopItems, getRecentItems, getSuggestedChips,
-    historyTokens, extractSuggestionsFromFreeText, addDetectedItemToProfile, renderTab, getPhotosForProfileItem };
+    historyTokens, extractSuggestionsFromFreeText, addDetectedItemToProfile, renderTab, getPhotosForProfileItem, esTokenComida };
 })();
 if (typeof window !== 'undefined') window.EmmaProfile = EmmaProfile;
