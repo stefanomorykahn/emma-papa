@@ -1167,6 +1167,13 @@ function actualizarEstado(){const el=$('estadoGuardado');
     el.innerHTML='<span class="punto '+(off?'offline':'')+'"></span> '+txt;}
   else el.innerHTML=navigator.onLine?'<span class="punto"></span> Guardado':'<span class="punto offline"></span> Sin conexión';}
 window.addEventListener('online',actualizarEstado);window.addEventListener('offline',actualizarEstado);
+// Al volver a la app (reabrir/cambiar de pestaña) sincroniza para traer lo nuevo (fotos, etc.) de otros dispositivos.
+let _lastVisSync=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&window.EmmaSync&&EmmaSync.isSignedIn&&EmmaSync.isSignedIn()){
+    const now=Date.now(); if(now-_lastVisSync>30000){_lastVisSync=now;EmmaSync.sync();}
+  }
+});
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
   $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
@@ -1203,7 +1210,7 @@ function recuperarPwd(){const email=$('loginEmail').value.trim(),err=$('loginErr
   err.textContent='';toast('Enviando correo…');
   EmmaSync.recoverPassword(email).then(()=>toast('Te enviamos un correo para recuperar tu contraseña 📧')).catch(e=>{err.textContent=(e&&e.message)||'No se pudo enviar el correo.';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
-function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
+function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();if(id==='galeria')renderGaleria();}
 window.onEmmaSynced=function(){if(window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();refrescarVista();};
 
 /* ===== Auto-backup a Drive (red de seguridad) ===== */
