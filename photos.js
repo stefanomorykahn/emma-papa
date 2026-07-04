@@ -4,9 +4,9 @@
    - Los ARCHIVOS viven en Google Drive (carpeta de Emma).
    - En Supabase/localStorage solo va la METADATA (emma_photos).
    - Subida directa desde el navegador con Google Identity Services
-     y scope MÍNIMO 'drive.file' (solo archivos creados por la app).
-     No hay client secret ni tokens persistidos: el token vive en
-     memoria y se pide consentimiento cuando hace falta.
+     y scope 'drive' (para escribir en TU carpeta pre-creada). Sin client
+     secret. El token se guarda en localStorage y se renueva SIN interacción
+     (prompt vacío) si ya diste consentimiento, para no reconectar seguido.
    - Sin Client ID configurado, la Galería funciona en modo
      "pegar enlace de Drive" (Fase 1). Ver PHOTOS.md.
    ============================================================ */
@@ -19,15 +19,21 @@ const EmmaPhotos = (function () {
   const SCOPE = 'https://www.googleapis.com/auth/drive openid email profile';
   const MAX_W = 1600;
 
-  let token = null, tokenExp = 0, email = '', tokenClient = null, gisReady = false;
+  let token = null, tokenExp = 0, email = '', tokenClient = null, gisReady = false, consented = false;
   const thumbCache = {}; // fileId -> objectURL (en memoria, no localStorage)
+  const LS_DRIVE = 'emmaDrive';
+  // Se persiste el token (localStorage) para NO reconectar en cada recarga. Es un token
+  // Bearer de corta vida (~1h) y se renueva SIN interacción si ya diste consentimiento.
+  function _persist() { try { localStorage.setItem(LS_DRIVE, JSON.stringify({ token, tokenExp, email, consented })); } catch (e) {} }
+  function _restore() { try { const d = JSON.parse(localStorage.getItem(LS_DRIVE)); if (d) { token = d.token || null; tokenExp = d.tokenExp || 0; email = d.email || ''; consented = !!d.consented; } } catch (e) {} }
+  _restore();
 
   function driveEnabled() { return !!CLIENT_ID; }
   function isConnected() { return !!token && Date.now() < tokenExp - 60000; }
   function account() { return email; }
   function status() {
     if (!CLIENT_ID) return { estado: 'no-config' };
-    if (isConnected()) return { estado: 'conectado', email, folder: CFG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH, folderId: FOLDER_ID };
+    if (isConnected() || consented) return { estado: 'conectado', email, folder: CFG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH, folderId: FOLDER_ID };
     return { estado: 'desconectado' };
   }
 
@@ -45,30 +51,44 @@ const EmmaPhotos = (function () {
     });
   }
 
+  // Pide un token a Google. prompt:'' = SIN interacción (silencioso, si ya consentiste);
+  // prompt:'consent' = muestra el diálogo de permisos (requiere gesto del usuario).
+  function requestToken(prompt) {
+    return loadGIS().then(() => new Promise((resolve, reject) => {
+      let done = false; const fin = (fn, a) => { if (!done) { done = true; fn(a); } };
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID, scope: SCOPE,
+        callback: (resp) => {
+          if (resp && resp.access_token) {
+            token = resp.access_token; tokenExp = Date.now() + (resp.expires_in || 3600) * 1000; consented = true; _persist();
+            fetchEmail().then(e => { email = e; _persist(); }).catch(() => {});
+            fin(resolve, token);
+          } else { fin(reject, new Error((resp && resp.error) || 'sin_token')); }
+        },
+        error_callback: (err) => fin(reject, new Error((err && err.type) || 'oauth_error'))
+      });
+      setTimeout(() => fin(reject, new Error('timeout')), 90000);
+      tokenClient.requestAccessToken({ prompt: prompt });
+    }));
+  }
+  // Conexión iniciada por el usuario (botón). Si ya consentiste, intenta silencioso; si no, pide consent.
   async function connect() {
     if (!CLIENT_ID) throw new Error('Falta GOOGLE_CLIENT_ID (ver PHOTOS.md)');
-    await loadGIS();
-    return new Promise((resolve, reject) => {
-      try {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID, scope: SCOPE,
-          callback: async (resp) => {
-            if (resp.error) return reject(new Error(resp.error));
-            token = resp.access_token; tokenExp = Date.now() + (resp.expires_in || 3600) * 1000;
-            try { email = await fetchEmail(); } catch (e) {}
-            resolve(true);
-          }
-        });
-        tokenClient.requestAccessToken({ prompt: isConnected() ? '' : 'consent' });
-      } catch (e) { reject(e); }
-    });
+    if (consented) { try { return await requestToken(''); } catch (e) { /* silencioso falló → pedir consent */ } }
+    return requestToken('consent');
   }
   function disconnect() {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch (e) {}
-    token = null; tokenExp = 0; email = '';
+    token = null; tokenExp = 0; email = ''; consented = false;
+    try { localStorage.removeItem(LS_DRIVE); } catch (e) {}
     Object.values(thumbCache).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
   }
-  async function ensureToken() { if (isConnected()) return token; await connect(); return token; }
+  // Garantiza un token válido SIN molestar: si caducó pero ya consentiste, lo renueva en silencio.
+  async function ensureToken() {
+    if (isConnected()) return token;
+    if (consented) { try { return await requestToken(''); } catch (e) {} }
+    throw new Error('Conecta Google Drive primero');
+  }
   async function fetchEmail() {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + token } });
     if (!r.ok) return ''; const d = await r.json(); return d.email || '';
@@ -159,7 +179,8 @@ const EmmaPhotos = (function () {
     const id = photo.driveFileId;
     if (!id) return '';
     if (thumbCache[id]) return thumbCache[id];
-    if (!CLIENT_ID || !isConnected()) return '';
+    if (!CLIENT_ID) return '';
+    try { await ensureToken(); } catch (e) { return ''; } // renueva en silencio si hace falta
     try {
       const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
         { headers: { Authorization: 'Bearer ' + token } });
