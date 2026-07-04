@@ -4,7 +4,7 @@
    Estrategia: "cache first" para los archivos de la app.
    Cambia CACHE_VERSION cuando actualices el código.
    ============================================================ */
-const CACHE_VERSION = 'emma-v19';
+const CACHE_VERSION = 'emma-v20';
 const ARCHIVOS = [
   './',
   'index.html',
@@ -28,7 +28,9 @@ const ARCHIVOS = [
 // Instalar: precargar los archivos de la app
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then(cache => cache.addAll(ARCHIVOS)).catch(() => {})
+    // {cache:'reload'} = ignora el caché HTTP del navegador al precachear, para que una
+    // nueva versión NUNCA guarde archivos viejos (evita "algunos archivos no se actualizan").
+    caches.open(CACHE_VERSION).then(cache => cache.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' })))).catch(() => {})
   );
   self.skipWaiting();
 });
