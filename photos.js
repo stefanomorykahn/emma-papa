@@ -63,6 +63,7 @@ const EmmaPhotos = (function () {
             token = resp.access_token; tokenExp = Date.now() + (resp.expires_in || 3600) * 1000; consented = true; _persist();
             fetchEmail().then(e => { email = e; _persist(); }).catch(() => {});
             fin(resolve, token);
+            setTimeout(() => { try { flushQueue(); } catch (e) {} }, 500); // sube pendientes al reconectar
           } else { fin(reject, new Error((resp && resp.error) || 'sin_token')); }
         },
         error_callback: (err) => fin(reject, new Error((err && err.type) || 'oauth_error'))
@@ -132,6 +133,79 @@ const EmmaPhotos = (function () {
     return r.json(); // { id, webViewLink }
   }
 
+  /* ---------- Cola de subidas pendientes (IndexedDB) ----------
+     Si una foto falla al subir (sin señal / Drive caído), NO se pierde: queda en cola y
+     se reintenta sola al reconectar, al volver la señal, o al abrir la app. */
+  function _idbOpen() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('emmaPhotosDB', 1);
+      r.onupgradeneeded = e => { const db = e.target.result; if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { keyPath: 'id' }); };
+      r.onsuccess = e => res(e.target.result); r.onerror = e => rej(e.target.error);
+    });
+  }
+  function _qPut(item) { return _idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction('queue', 'readwrite'); tx.objectStore('queue').put(item); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
+  function _qAll() { return _idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction('queue', 'readonly'); const rq = tx.objectStore('queue').getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => rej(rq.error); })); }
+  function _qDel(id) { return _idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction('queue', 'readwrite'); tx.objectStore('queue').delete(id); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
+
+  async function _uploadAndSave(blob, fileName, meta, width, height) {
+    const up = await driveUpload(blob, fileName);
+    const driveUrl = up.webViewLink || ('https://drive.google.com/file/d/' + up.id + '/view');
+    return EmmaStore.savePhoto({
+      entryId: meta.entryId || null, activityId: meta.activityId || null,
+      date: meta.date || new Date().toISOString().slice(0, 10),
+      title: meta.title || '', description: meta.description || '', tags: meta.tags || [],
+      storageProvider: 'google_drive', driveFolderId: FOLDER_ID, driveFileId: up.id, driveUrl,
+      mimeType: 'image/jpeg', fileName, fileSize: blob.size, width, height, isFavorite: !!meta.isFavorite
+    });
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing || !CLIENT_ID) return 0;
+    let items; try { items = await _qAll(); } catch (e) { return 0; }
+    if (!items.length) return 0;
+    try { await ensureToken(); } catch (e) { return 0; } // sin Drive → reintentar luego
+    flushing = true; let subidas = 0;
+    for (const it of items) {
+      try { await _uploadAndSave(it.blob, it.fileName, it.meta, it.width, it.height); await _qDel(it.id); subidas++; }
+      catch (e) { it.attempts = (it.attempts || 0) + 1; try { await _qPut(it); } catch (e2) {} }
+    }
+    flushing = false;
+    if (subidas && typeof window.onPhotosFlushed === 'function') { try { window.onPhotosFlushed(subidas); } catch (e) {} }
+    return subidas;
+  }
+  async function queueCount() { try { return (await _qAll()).length; } catch (e) { return 0; } }
+
+  // Reintenta la cola al volver la señal y cada 3 min; y poco después de cargar.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => flushQueue());
+    setTimeout(() => flushQueue(), 4000);
+    setInterval(() => flushQueue(), 3 * 60 * 1000);
+  }
+
+  /* ---------- Backup a Drive (JSON) ---------- */
+  // Sube o ACTUALIZA un archivo de texto en la carpeta de Drive (para el auto-backup).
+  async function driveUploadText(text, fileName, mime) {
+    await ensureToken(); mime = mime || 'application/json';
+    let existingId = '';
+    try {
+      const q = encodeURIComponent(`name='${fileName}' and '${FOLDER_ID}' in parents and trashed=false`);
+      const r0 = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)&spaces=drive', { headers: { Authorization: 'Bearer ' + token } });
+      if (r0.ok) { const d = await r0.json(); if (d.files && d.files[0]) existingId = d.files[0].id; }
+    } catch (e) {}
+    const boundary = 'emma_' + Math.random().toString(36).slice(2);
+    const metadata = existingId ? {} : { name: fileName, parents: [FOLDER_ID] };
+    const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`;
+    const tail = `\r\n--${boundary}--`;
+    const body = new Blob([head, text, tail], { type: 'multipart/related; boundary=' + boundary });
+    const url = existingId
+      ? ('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart&fields=id')
+      : ('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id');
+    const r = await fetch(url, { method: existingId ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + token }, body });
+    if (!r.ok) throw new Error('Drive backup: ' + (await r.text()).slice(0, 100));
+    return r.json();
+  }
+
   /* ---------- API pública ---------- */
   // Sube un archivo y guarda la metadata (requiere Drive conectado)
   async function addFromFile(file, meta, onState) {
@@ -140,19 +214,19 @@ const EmmaPhotos = (function () {
     onState('Optimizando foto…');
     const { blob, width, height } = await optimize(file);
     const fileName = nombreArchivo(meta.date);
-    onState('Subiendo a Drive…');
-    const up = await driveUpload(blob, fileName);
-    const driveUrl = up.webViewLink || ('https://drive.google.com/file/d/' + up.id + '/view');
-    onState('Guardando en la app…');
-    const photo = EmmaStore.savePhoto({
-      entryId: meta.entryId || null, activityId: meta.activityId || null,
-      date: meta.date || new Date().toISOString().slice(0, 10),
-      title: meta.title || '', description: meta.description || '', tags: meta.tags || [],
-      storageProvider: 'google_drive', driveFolderId: FOLDER_ID, driveFileId: up.id, driveUrl,
-      mimeType: 'image/jpeg', fileName, fileSize: blob.size, width, height, isFavorite: !!meta.isFavorite
-    });
-    onState('Foto guardada');
-    return photo;
+    try {
+      onState('Subiendo a Drive…');
+      const photo = await _uploadAndSave(blob, fileName, meta, width, height);
+      onState('Foto guardada');
+      flushQueue(); // de paso, reintenta pendientes
+      return photo;
+    } catch (e) {
+      // NO perder la foto: a la cola para reintentar sola después.
+      try { await _qPut({ id: (EmmaStore.uuid ? EmmaStore.uuid() : ('q' + Date.now() + Math.random().toString(36).slice(2))), blob, fileName, meta, width, height, createdAt: Date.now(), attempts: 0 }); } catch (e2) {}
+      onState('Guardada · se subirá luego');
+      if (typeof window.onPhotoQueued === 'function') { try { window.onPhotoQueued(); } catch (e3) {} }
+      return { queued: true };
+    }
   }
 
   // Guarda solo metadata a partir de un enlace de Drive (Fase 1, sin OAuth)
@@ -191,6 +265,6 @@ const EmmaPhotos = (function () {
   }
 
   return { FOLDER_ID, driveEnabled, isConnected, account, status, connect, disconnect,
-    addFromFile, addFromLink, getThumb, parseDriveId };
+    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken };
 })();
 if (typeof window !== 'undefined') window.EmmaPhotos = EmmaPhotos;

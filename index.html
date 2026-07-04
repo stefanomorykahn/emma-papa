@@ -26,6 +26,23 @@
     --fuente:'Poppins','Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     --safe-bottom:env(safe-area-inset-bottom,0px);
   }
+  /* Modo oscuro: variante CÁLIDA de la paleta (no gris genérico). Mantiene el terracota. */
+  :root[data-tema="oscuro"]{
+    color-scheme:dark;
+    --crema:#17130f; --panel:#221c17; --linea:#352c25; --acento:#e09a86; --acento-2:#e3a892; --acento-suave:#3a2b25;
+    --texto:#f1e9e1; --suave:#ac9d91; --ok:#83b389; --dorado:#e2b45f;
+    --sombra:0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-tema="claro"]):not([data-tema="oscuro"]){
+      color-scheme:dark;
+      --crema:#17130f; --panel:#221c17; --linea:#352c25; --acento:#e09a86; --acento-2:#e3a892; --acento-suave:#3a2b25;
+      --texto:#f1e9e1; --suave:#ac9d91; --ok:#83b389; --dorado:#e2b45f;
+      --sombra:0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  /* Accesibilidad: contorno claro al navegar con teclado. */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,.chip:focus-visible{outline:2px solid var(--acento);outline-offset:2px;}
   svg.ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -308,6 +325,7 @@
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Galería</h2>
       <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button></div>
     <div class="chips" id="g-seccion" style="margin-bottom:10px"></div>
+    <div id="g-pendientes"></div>
     <input type="text" class="buscar" id="g-buscar" placeholder="Buscar por título, tag o descripción…" oninput="renderGaleria()" />
     <div class="chips scroll" id="g-filtros" style="margin-bottom:14px;"></div>
     <div id="g-grid"></div>
@@ -362,6 +380,10 @@
       <div style="display:flex;gap:8px"><input type="text" id="nuevaCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoria();}" /><button class="mini" onclick="agregarCategoria()">＋ Agregar</button></div>
     </div>
 
+    <div class="grupo-btns"><h3>Apariencia</h3>
+      <button class="btn-full" onclick="cambiarTema()"><span class="ico" aria-hidden="true">🌗</span> <span id="temaLabel">Tema: Automático</span></button>
+    </div>
+
     <div class="grupo-btns"><h3>Ver</h3>
       <button class="btn-full" onclick="ir('historial')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 4h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 5.5V19"/></svg></span> Historial</button>
       <button class="btn-full" onclick="ir('notas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span> Notas de papá</button>
@@ -411,7 +433,7 @@
     <div class="login-error" id="loginError"></div>
     <button class="guardar" id="loginBtn" onclick="hacerLogin()">Entrar</button>
     <p class="login-nota"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a></p>
-    <p class="login-nota">Tus datos se guardan en este dispositivo aunque no inicies sesión.</p>
+    <p class="login-nota"><a href="#" onclick="document.getElementById('loginOverlay').classList.remove('show');return false;">Seguir sin cuenta</a> · tus datos se guardan en este dispositivo.</p>
   </div>
 </div>
 
@@ -703,14 +725,15 @@ async function procesarFotos(entry){
   if(pend.some(f=>f.file)&&EmmaPhotos.driveEnabled()&&!EmmaPhotos.isConnected()){
     try{await EmmaPhotos.connect();}catch(e){toast('Conecta Google Drive en Ajustes para subir fotos');}
   }
-  const tags=[...(entry.activities||[]),...(entry.foods||[])];
+  const tags=[...(entry.activities||[]),...(entry.foods||[])];let encoladas=0;
   for(const f of pend){
     try{
-      if(f.file){toast('Subiendo foto…');await EmmaPhotos.addFromFile(f.file,{entryId:entry.id,date:entry.date,tags});}
+      if(f.file){toast('Subiendo foto…');const r=await EmmaPhotos.addFromFile(f.file,{entryId:entry.id,date:entry.date,tags});if(r&&r.queued)encoladas++;}
       else if(f.url){EmmaPhotos.addFromLink(f.url,{entryId:entry.id,date:entry.date,tags});}
-    }catch(err){toast('No se pudo subir una foto: '+(err.message||''));}
+    }catch(err){encoladas++;} // ya quedó en cola; no se pierde
   }
-  toast('Fotos guardadas ✓');rebuildProfile();
+  toast(encoladas?('Fotos guardadas · '+encoladas+' se subir'+(encoladas>1?'án':'á')+' al reconectar'):'Fotos guardadas ✓');
+  rebuildProfile();
 }
 
 /* ===== Galería ===== */
@@ -727,7 +750,11 @@ function fotoMatch(p,key){
   const kw={papa:'papa',mama:'mama',familia:'familia',actividades:'activ',comida:'comid',colegio:'colegio',natacion:'nataci',recuerdos:'recuerd',primera:'primera'}[key];
   return kw?t.includes(kw):true;
 }
+function renderPendientes(){const el=$('g-pendientes');if(!el||!(window.EmmaPhotos&&EmmaPhotos.queueCount)){if(el)el.innerHTML='';return;}
+  EmmaPhotos.queueCount().then(n=>{if(!el)return;el.innerHTML=n>0?`<div class="aviso" style="display:flex;align-items:center;gap:10px;justify-content:space-between">⏳ ${n} foto${n>1?'s':''} por subir <button class="mini" onclick="reintentarSubidas()">Reintentar</button></div>`:'';}).catch(()=>{});}
+function reintentarSubidas(){if(!(window.EmmaPhotos&&EmmaPhotos.flushQueue))return;toast('Reintentando subidas…');EmmaPhotos.flushQueue().then(n=>{toast(n?('Subida'+(n>1?'s':'')+' '+n+' ✓'):'Aún sin conexión a Drive');renderGaleria();rebuildProfile();}).catch(()=>toast('No se pudo, intenta luego'));}
 function renderGaleria(){
+  renderPendientes();
   $('g-seccion').innerHTML=GSECCIONES.map(([k,l])=>`<span class="chip${k===galSeccion?' on':''}" onclick="setGalSeccion('${k}')">${l}</span>`).join('');
   $('g-filtros').innerHTML=GFILTROS.map(([k,l])=>`<span class="chip${k===galFiltro?' on':''}" onclick="setGalFiltro('${k}')">${l}</span>`).join('');
   const q=normTxt($('g-buscar').value.trim());
@@ -914,7 +941,7 @@ function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new 
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
-function renderAjustes(){renderCategorias();const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+function renderAjustes(){renderCategorias();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}
@@ -1028,8 +1055,21 @@ function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classLi
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
 window.onEmmaSynced=function(){if(window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();refrescarVista();};
 
+/* ===== Auto-backup a Drive (red de seguridad) ===== */
+function autoBackup(){
+  if(!(window.EmmaPhotos&&EmmaPhotos.driveEnabled()&&EmmaPhotos.driveUploadText))return;
+  const meta=EmmaStore.getMeta();const last=meta.lastAutoBackup?new Date(meta.lastAutoBackup).getTime():0;
+  if(Date.now()-last < 20*3600*1000)return;                    // máximo 1 vez al día
+  if(!EmmaStore.getEntries().length && !EmmaNotes.getNotes().length)return; // nada que respaldar aún
+  EmmaPhotos.driveUploadText(JSON.stringify(backupCompleto()),'emma-backup.json').then(()=>{EmmaStore.setMeta({lastAutoBackup:new Date().toISOString()});if($('v-ajustes')&&$('v-ajustes').classList.contains('activa'))renderAjustes();}).catch(()=>{});
+}
+/* ===== Tema (Auto / Claro / Oscuro) ===== */
+function aplicarTema(){const t=localStorage.getItem('emmaTema')||'auto';if(t==='auto')document.documentElement.removeAttribute('data-tema');else document.documentElement.setAttribute('data-tema',t);}
+function cambiarTema(){const orden=['auto','claro','oscuro'];const actual=localStorage.getItem('emmaTema')||'auto';const next=orden[(orden.indexOf(actual)+1)%3];localStorage.setItem('emmaTema',next);aplicarTema();renderAjustes();toast('Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[next]));}
+
 /* ===== Init ===== */
 function init(){
+  aplicarTema();
   if(window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
   $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
   refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
@@ -1037,8 +1077,11 @@ function init(){
   $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
   rebuildProfile();
   if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;EmmaSync.onSessionExpired=avisarSesionExpirada;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
+  window.onPhotoQueued=function(){if($('v-galeria')&&$('v-galeria').classList.contains('activa'))renderGaleria();};
+  window.onPhotosFlushed=function(n){toast(n+' foto'+(n>1?'s':'')+' subida'+(n>1?'s':'')+' ✓');rebuildProfile();if($('v-galeria')&&$('v-galeria').classList.contains('activa'))renderGaleria();};
   actualizarEstado();renderInicio();
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  setTimeout(()=>{try{autoBackup();}catch(e){}},8000); // respaldo automático a Drive (máx 1×/día)
 }
 init();
 </script>
