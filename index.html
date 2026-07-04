@@ -343,6 +343,7 @@
       <button class="mini" style="margin-top:12px;" onclick="cancelarNota()">Cancelar</button>
     </div>
     <div id="notaLista">
+      <div id="nt-deteccion-lista"></div>
       <button class="guardar" onclick="nuevaNota()" style="margin-bottom:14px;">＋ Nueva nota</button>
       <input type="text" class="buscar" id="nt-buscar" placeholder="🔍 Buscar en notas…" oninput="renderNotas()" />
       <div class="chips scroll" id="nt-filtros" style="margin-bottom:14px;"></div>
@@ -855,19 +856,24 @@ function quitarFoto(id){if(!confirm('¿Quitar esta foto de la app? (No se borra 
 
 /* ===== Notas ===== */
 let notaEditId=null,notaTags=[];
-function nuevaNota(){notaEditId=null;notaTags=[];$('nt-text').value='';$('nt-date').value=hoyISO();$('nt-deteccion').innerHTML='';pintarTagChips();$('nt-guardar').disabled=true;$('notaLista').style.display='none';$('notaEditor').style.display='block';ir('notas');}
+function nuevaNota(){notaEditId=null;notaTags=[];$('nt-text').value='';$('nt-date').value=hoyISO();$('nt-deteccion').innerHTML='';if($('nt-deteccion-lista'))$('nt-deteccion-lista').innerHTML='';pintarTagChips();$('nt-guardar').disabled=true;$('notaLista').style.display='none';$('notaEditor').style.display='block';ir('notas');}
 function cancelarNota(){$('notaEditor').style.display='none';$('notaLista').style.display='block';renderNotas();}
 function pintarTagChips(){const c=$('nt-tags');c.innerHTML='';EmmaNotes.TAGS.forEach(t=>{const ch=document.createElement('span');ch.className='chip tag';ch.textContent=t;if(notaTags.includes(t))ch.classList.add('on');ch.onclick=()=>{const i=notaTags.indexOf(t);if(i>=0){notaTags.splice(i,1);ch.classList.remove('on');}else{notaTags.push(t);ch.classList.add('on');}};c.appendChild(ch);});}
 function guardarNota(){const text=$('nt-text').value.trim();if(!text)return;let nota;
   if(notaEditId){nota=EmmaNotes.updateNote(notaEditId,{text,tags:[...notaTags],date:$('nt-date').value||hoyISO()});toast('Nota actualizada ✓');}
   else{nota=EmmaNotes.saveNote({date:$('nt-date').value||hoyISO(),text,tags:[...notaTags]});toast('Nota guardada ✓');}
-  rebuildProfile();const sug=EmmaProfile.extractSuggestionsFromFreeText(text);if(sug.length)mostrarDeteccion(sug,nota.id);else cancelarNota();}
-function mostrarDeteccion(sug,noteId){$('nt-deteccion').innerHTML=`<div class="deteccion"><h4>Detecté posible información para el perfil</h4>
+  rebuildProfile();
+  const sug=EmmaProfile.extractSuggestionsFromFreeText(text);
+  // limpiar el editor y volver a la lista (la nota ya quedó guardada)
+  notaEditId=null;notaTags=[];$('nt-text').value='';$('nt-date').value=hoyISO();$('nt-deteccion').innerHTML='';$('nt-guardar').disabled=true;
+  $('notaEditor').style.display='none';$('notaLista').style.display='block';renderNotas();
+  if(sug.length)mostrarDeteccion(sug,nota.id);else $('nt-deteccion-lista').innerHTML='';}
+function mostrarDeteccion(sug,noteId){$('nt-deteccion-lista').innerHTML=`<div class="deteccion"><h4>Detecté posible información para el perfil</h4>
   ${sug.map((s,i)=>`<div class="det-item" id="det-${i}"><span class="txt"><b>${esc(s.value)}</b> → ${tipoLabel(s.type)}${s.sentiment==='pos'?' · le gustó':s.sentiment==='neg'?' · no le gustó':''}</span>
     <button class="mini" onclick="detAgregar(${i},'${s.type}','${esc(s.value)}','${s.sentiment}','${noteId}')">Agregar</button>
     <button class="mini" onclick="detEditar(${i},'${s.type}','${s.sentiment}','${noteId}')">Editar</button>
     <button class="mini" onclick="document.getElementById('det-${i}').remove()">Ignorar</button></div>`).join('')}
-  <div style="margin-top:10px"><button class="mini" onclick="cancelarNota()">Listo</button></div></div>`;}
+  <div style="margin-top:10px"><button class="mini" onclick="$('nt-deteccion-lista').innerHTML=''">Listo</button></div></div>`;}
 function tipoLabel(t){return({food:'alimentación',activity:'actividad',word:'lenguaje',place:'lugar',person:'persona'})[t]||t;}
 function detAgregar(i,type,value,sent,noteId){EmmaProfile.addDetectedItemToProfile(type,value,sent,noteId);const el=$('det-'+i);if(el)el.innerHTML='<span class="txt" style="color:var(--ok)">✓ Agregado: '+esc(value)+'</span>';toast('Agregado al perfil ✓');}
 function detEditar(i,type,sent,noteId){const v=prompt('Editar valor:');if(v&&v.trim())detAgregar(i,type,v.trim(),sent,noteId);}

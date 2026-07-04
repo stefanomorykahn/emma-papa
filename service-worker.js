@@ -4,7 +4,7 @@
    Estrategia: "cache first" para los archivos de la app.
    Cambia CACHE_VERSION cuando actualices el código.
    ============================================================ */
-const CACHE_VERSION = 'emma-v26';
+const CACHE_VERSION = 'emma-v27';
 const ARCHIVOS = [
   './',
   'index.html',
