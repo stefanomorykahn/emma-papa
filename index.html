@@ -218,11 +218,6 @@
       <button class="card-sec" onclick="ir('comidas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M8 3v18"/><path d="M16 3c-1.5 0-2.5 2-2.5 5s1 4 2.5 4v9"/></svg></span><span><span class="t">Comidas de Emma</span><br><span class="s">Registro rápido</span></span></button>
       <button class="card-sec" onclick="ir('galeria')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 4"/></svg></span><span><span class="t">Galería</span><br><span class="s">Fotos de Emma</span></span></button>
     </div>
-    <button class="btn-full" onclick="ir('gastos')" style="margin-bottom:var(--sp4);box-shadow:var(--sombra)">
-      <span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1"/></svg></span>
-      <span>Gastos de Emma</span><span style="margin-left:auto;color:var(--suave);font-size:12px" id="gastoMesHint"></span>
-    </button>
-
     <div class="stats3">
       <div class="stat"><div class="n" id="statTotal">0</div><div class="l">momentos</div></div>
       <div class="stat"><div class="n" id="statRacha">0</div><div class="l">racha</div></div>
@@ -253,6 +248,11 @@
       <input type="text" id="r-palabra" list="dl-word" placeholder="Ej. 'papá'" /><datalist id="dl-word"></datalist></div>
     <div class="campo"><label>Nota rápida <span class="op">(opcional · dicta 🎙️)</span></label><textarea id="r-nota" placeholder="Algo para recordar…"></textarea></div>
     <div class="campo"><label>Gasto <span class="op">(opcional, S/)</span></label><input type="text" id="r-gasto-monto" inputmode="decimal" placeholder="Ej. 25.50" /></div>
+    <div class="campo"><label>Constancia / boleta <span class="op">(opcional)</span></label>
+      <div class="foto-chips" id="r-boleta"></div>
+      <button type="button" class="mini" onclick="pickBoleta()">＋ Foto de la boleta</button>
+      <input type="file" id="r-boleta-input" accept="image/*" style="display:none" onchange="onBoletaPick(event)" />
+    </div>
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
@@ -486,11 +486,20 @@ function guardarRapido(){const g=id=>$(id).value.trim();const foods=comidasFinal
   rebuildProfile();
   if(fotosPendientes.length&&entry)procesarFotos(entry); // sube en segundo plano
   const gm=parseMonto($('r-gasto-monto').value);
-  if(gm>0&&entry)EmmaStore.saveExpense({entryId:entry.id,date:entry.date,amount:gm,category:(foods.length?'Comida':'Otro'),description:g('r-nota')||(sel.actividades.join(', '))});
+  if(gm>0&&entry){
+    const exp=EmmaStore.saveExpense({entryId:entry.id,date:entry.date,amount:gm,
+      category:(foods.length?'Comida':'Otro'),description:g('r-nota')||sel.actividades.join(', ')});
+    const bo=boletaPendiente; boletaPendiente=null;
+    if(bo&&window.EmmaPhotos){(async()=>{try{let ph;
+      if(bo.file){toast('Subiendo boleta…');ph=await EmmaPhotos.addFromFile(bo.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      else if(bo.url){ph=EmmaPhotos.addFromLink(bo.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
+    }catch(e){toast('No se pudo subir la boleta');}})();}
+  }
   limpiarRapido();ir('inicio');}
 function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-comida-otro','r-gasto-monto'].forEach(id=>$(id).value='');
   $('r-date').value=hoyISO();$('r-comida-otro').style.display='none';$('campo-resultado').style.display='none';localStorage.removeItem('emmaDraftQuick');refrescarChipsRapido();validarRapido();
-  fotosPendientes=[];renderFotoPrev();}
+  fotosPendientes=[];renderFotoPrev();boletaPendiente=null;renderBoletaPrev();}
 function guardarBorrador(){localStorage.setItem('emmaDraftQuick',JSON.stringify({date:$('r-date').value,sel,gusto:$('r-gusto').value,palabra:$('r-palabra').value,nota:$('r-nota').value,otro:$('r-comida-otro').value}));}
 function restaurarBorrador(){if(editandoId)return;try{const d=JSON.parse(localStorage.getItem('emmaDraftQuick'));if(!d)return;sel=d.sel||sel;$('r-date').value=d.date||hoyISO();$('r-gusto').value=d.gusto||'';$('r-palabra').value=d.palabra||'';$('r-nota').value=d.nota||'';$('r-comida-otro').value=d.otro||'';}catch(e){}}
 
@@ -633,6 +642,7 @@ function ideaConFoto(r){const entry=guardarActividad(r,'');if(entry)agregarFotoA
 
 /* ===== Fotos (en el formulario de Registrar) ===== */
 let fotosPendientes=[]; // {file?, url?, previewUrl}
+let boletaPendiente=null; // {file?, url?, previewUrl} — constancia de un gasto
 let fotoTarget='r-fotos'; let fotoInputId='r-foto-input';
 function pickFoto(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$(fotoInputId).click();}
@@ -652,6 +662,14 @@ function agregarFotoAEntrada(entryId,date,tags){
   }else{const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){EmmaPhotos.addFromLink(u.trim(),{entryId,date,tags});toast('Foto guardada ✓');rebuildProfile();}}
 }
 function removeFoto(i){const f=fotosPendientes[i];if(f&&f.previewUrl)try{URL.revokeObjectURL(f.previewUrl);}catch(e){}fotosPendientes.splice(i,1);renderFotoPrev();}
+function pickBoleta(){
+  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){document.getElementById('r-boleta-input').click();}
+  else{const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){boletaPendiente={url:u.trim(),previewUrl:''};renderBoletaPrev();}}
+}
+function onBoletaPick(ev){const f=ev.target.files[0];if(f){boletaPendiente={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderBoletaPrev();}
+function renderBoletaPrev(){const c=document.getElementById('r-boleta');if(!c)return;
+  c.innerHTML=boletaPendiente?`<div class="foto-prev">${boletaPendiente.previewUrl?`<img src="${boletaPendiente.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarBoleta()">×</button></div>`:'';}
+function quitarBoleta(){if(boletaPendiente&&boletaPendiente.previewUrl)try{URL.revokeObjectURL(boletaPendiente.previewUrl);}catch(e){}boletaPendiente=null;renderBoletaPrev();}
 async function procesarFotos(entry){
   const pend=fotosPendientes.slice();fotosPendientes=[];renderFotoPrev();
   if(!pend.length||!window.EmmaPhotos)return;
@@ -913,7 +931,6 @@ function renderInicio(){
   $('emmaNombre').textContent=EmmaStore.EMMA.nombre;
   $('emmaMeta').textContent=EmmaStore.edadEmma()+' · '+fechaLarga(hoyISO()).replace(/^\w/,c=>c.toUpperCase());
   $('statRacha').textContent=EmmaStore.racha();$('statTotal').textContent=EmmaStore.getEntries().length;
-  const gm=gastoMes();const gh=$('gastoMesHint');if(gh)gh.textContent=gm>0?('este mes '+moneda(gm)):'';
   const lu=EmmaStore.getMeta().lastProfileUpdate;
   $('statUpd').textContent=lu?new Date(lu).toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'Nunca';
   $('updLine').textContent=lu?('Última actualización: '+new Date(lu).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Toca para organizar la info de Emma';
