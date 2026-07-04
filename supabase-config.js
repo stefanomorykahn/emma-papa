@@ -17,7 +17,7 @@ window.SUPABASE_CONFIG = {
 
   // ---- IA (OpenAI vía Edge Function) · OPCIONAL ----
   // Ponlo en true SOLO después de desplegar la Edge Function "emma-ai" (ver AI.md).
-  AI_ENABLED: false,
+  AI_ENABLED: true,
   AI_MONTHLY_LIMIT_USD: 50,  // tope de gasto mensual (informativo; el real lo aplica la Edge Function)
 
   // ---- Google Drive (Galería de fotos) · OPCIONAL ----
