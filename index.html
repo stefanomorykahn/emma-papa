@@ -940,19 +940,66 @@ function eliminar(id){if(!confirm('¿Eliminar este registro?'))return;EmmaStore.
 
 /* ===== Perfil ===== */
 let perfTab='resumen';let decVer=false;
-const TABS=[['resumen','Resumen'],['alimentacion','Alimentación'],['actividades','Actividades'],['canciones','Canciones'],['animales','Animales'],['lenguaje','Lenguaje'],['emociones','Emociones'],['lugares','Lugares'],['sobre','Sobre Emma'],['recuerdos','Recuerdos']];
+const TABS=[['resumen','Resumen'],['hitos','Hitos'],['tendencias','Tendencias'],['alimentacion','Alimentación'],['actividades','Actividades'],['canciones','Canciones'],['animales','Animales'],['lenguaje','Lenguaje'],['emociones','Emociones'],['lugares','Lugares'],['sobre','Sobre Emma'],['recuerdos','Recuerdos']];
 function renderPerfil(){rebuildProfile();
   const dec=EmmaAI.practicalDecisions();
   if(perfTab==='resumen'&&dec.length){const vis=decVer?dec:dec.slice(0,2);
     $('decisiones').innerHTML=`<div class="p-bloque"><h3>Decisiones sugeridas</h3>${vis.map(d=>`<div class="cuerpo" style="padding:3px 0;font-size:14px">• ${esc(d)}</div>`).join('')}${dec.length>2?`<button class="mini" style="margin-top:6px" onclick="decVer=!decVer;renderPerfil()">${decVer?'Ver menos':'Ver más'}</button>`:''}</div>`;}
   else $('decisiones').innerHTML='';
   $('perfilTabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===perfTab?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
-  $('perfilContenido').innerHTML=EmmaProfile.renderTab(perfTab);
+  $('perfilContenido').innerHTML=(perfTab==='hitos')?renderHitos():(perfTab==='tendencias')?renderTendencias():EmmaProfile.renderTab(perfTab);
   const pn=$('perfilNotas');
   if(perfTab==='resumen'){const imp=EmmaNotes.getNotes().filter(n=>n.isImportant).slice(0,5);
     pn.innerHTML=`<div class="p-bloque"><h3>Notas importantes</h3>${imp.length?imp.map(n=>`<div class="pi-nota" style="font-style:normal">${esc(n.text)} <span class="pi-meta">· ${fechaCorta(n.date)}</span></div>`).join(''):'<p class="p-vacio">Marca notas con el tag “Importante”.</p>'}<div style="margin-top:10px"><button class="mini" onclick="ir('notas')">Ver notas</button></div></div>`;}
   else pn.innerHTML='';}
 function setTab(t){perfTab=t;renderPerfil();}
+/* ===== Hitos / primeras veces ===== */
+function _normTok(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+function _arr(v){return Array.isArray(v)?v:(v?[v]:[]);}
+function getMilestones(){
+  const entries=(EmmaStore.getEntries()||[]).filter(e=>!e.deleted&&e.date).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')); // ascendente
+  const seen={w:{},f:{},a:{},p:{}};const out=[];
+  entries.forEach(e=>{
+    _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k])return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
+    [].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(!k||seen.f[k])return;seen.f[k]=1;out.push({date:e.date,type:'comida',text:'Primera vez que probó: '+f});});
+    _arr(e.activities).forEach(a=>{if(a==='Otro')return;const k=_normTok(a);if(!k||seen.a[k])return;seen.a[k]=1;out.push({date:e.date,type:'actividad',text:'Nueva actividad: '+a});});
+    _arr(e.places).forEach(p=>{const k=_normTok(p);if(!k||seen.p[k])return;seen.p[k]=1;out.push({date:e.date,type:'lugar',text:'Nuevo lugar: '+p});});
+    if(e.tenderMoment&&String(e.tenderMoment).trim())out.push({date:e.date,type:'tierno',text:'Momento tierno: '+String(e.tenderMoment).trim().slice(0,100)});
+    if(e.newLearning&&String(e.newLearning).trim())out.push({date:e.date,type:'avance',text:'Avance: '+String(e.newLearning).trim().slice(0,100)});
+    const nota=(e.note||'').trim();if(nota&&/primera vez/i.test(nota))out.push({date:e.date,type:'primera',text:nota.slice(0,120)});
+  });
+  (window.EmmaNotes?EmmaNotes.getNotes():[]).filter(n=>!n.deleted&&n.date&&(n.text||'').trim()).forEach(n=>{const t=(n.text||'').trim();if(n.isImportant||/primera vez/i.test(t))out.push({date:n.date,type:n.isImportant?'importante':'primera',text:t.slice(0,120)});});
+  out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // más reciente primero
+  return out;}
+function _tipoHito(t){return({palabra:'🗣️ Palabra',comida:'🍎 Comida',actividad:'🎨 Actividad',lugar:'📍 Lugar',tierno:'💛 Ternura',avance:'✨ Avance',primera:'⭐ Primera vez',importante:'⭐ Importante'})[t]||t;}
+function renderHitos(){
+  const m=getMilestones();
+  if(!m.length)return '<p class="p-vacio">Aún no hay hitos. Registra momentos con palabras, comidas, actividades o lugares nuevos.</p>';
+  return m.map(h=>`<div class="p-bloque" style="margin-bottom:10px"><div class="pi-meta">${_tipoHito(h.type)} · ${fechaCorta(h.date)}</div><div class="cuerpo" style="margin-top:4px">${esc(h.text)}</div></div>`).join('');}
+/* ===== Tendencias (últimas 6 semanas) ===== */
+function _ymd(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function _lunesDe(iso){const d=new Date(iso+'T00:00:00');const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return _ymd(d);}
+function computeTendencias(){
+  const POS=['Feliz','Tranquila','Cariñosa','Juguetona','Curiosa'];
+  const entries=(EmmaStore.getEntries()||[]).filter(e=>!e.deleted&&e.date);
+  const base=new Date(hoyISO()+'T00:00:00');const dow=(base.getDay()+6)%7;base.setDate(base.getDate()-dow);
+  const semanas=[];for(let i=5;i>=0;i--){const d=new Date(base);d.setDate(d.getDate()-i*7);semanas.push({wk:_ymd(d),lbl:d.toLocaleDateString('es-ES',{day:'numeric',month:'short'}),total:0,pos:0});}
+  const idx={};semanas.forEach((s,i)=>idx[s.wk]=i);let acept=0,rech=0;
+  entries.forEach(e=>{const w=_lunesDe(e.date);if(w in idx){const b=semanas[idx[w]];b.total++;if(POS.indexOf(e.mood)>=0)b.pos++;const fr=e.food_result||'';if(fr==='Le gustó')acept++;else if(fr==='No le gustó')rech++;}});
+  return {semanas,acept,rech};}
+function renderTendencias(){
+  const t=computeTendencias();
+  const hayAlgo=t.semanas.some(s=>s.total>0)||t.acept||t.rech;
+  if(!hayAlgo)return '<p class="p-vacio">Aún no hay suficientes registros para ver tendencias.</p>';
+  const barra=(label,pct,val)=>`<div class="bar-row"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(0,Math.min(100,Math.round(pct)))}%"></span></span><span class="bar-val">${esc(String(val))}</span></div>`;
+  const anim=t.semanas.map(s=>barra(s.lbl,s.total?s.pos/s.total*100:0,s.total?Math.round(s.pos/s.total*100)+'%':'—')).join('');
+  const maxC=Math.max(1,t.acept,t.rech);
+  const com=barra('Aceptadas',t.acept/maxC*100,t.acept)+barra('Rechazadas',t.rech/maxC*100,t.rech);
+  const maxM=Math.max(1,...t.semanas.map(s=>s.total));
+  const mom=t.semanas.map(s=>barra(s.lbl,s.total/maxM*100,s.total)).join('');
+  return `<div class="p-bloque" style="margin-bottom:12px"><h3>Ánimo por semana</h3><div class="pi-meta" style="margin-bottom:6px">% de registros con ánimo positivo</div>${anim}</div>
+    <div class="p-bloque" style="margin-bottom:12px"><h3>Comidas</h3><div class="pi-meta" style="margin-bottom:6px">Aceptadas vs rechazadas (6 semanas)</div>${com}</div>
+    <div class="p-bloque"><h3>Momentos por semana</h3><div class="pi-meta" style="margin-bottom:6px">Constancia del registro</div>${mom}</div>`;}
 
 /* ===== Actualizar perfil ===== */
 function actualizarPerfil(btnId){
