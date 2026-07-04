@@ -17,7 +17,7 @@
 
   const KEY_AUTH = 'emmaAuth';
   let session = _loadSession();
-  let busy = false, debounceTimer = null;
+  let busy = false, debounceTimer = null, retryTimer = null, retryN = 0;
 
   const EmmaSync = {
     configured: CONFIGURED,
@@ -122,6 +122,7 @@
         for (const t of TABLES) await syncTable(t);
         if (window.EmmaProfile) EmmaProfile.rebuildProfileFromEntries();
         EmmaStore.setMeta({ lastSync: new Date().toISOString() });
+        retryN = 0; if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } // recuperado
         _setState('synced');
         if (typeof window.onEmmaSynced === 'function') window.onEmmaSynced();
       } catch (err) {
@@ -131,6 +132,7 @@
           if (typeof EmmaSync.onSessionExpired === 'function') EmmaSync.onSessionExpired();
         } else {
           _setState(navigator.onLine ? 'error' : 'offline');
+          if (navigator.onLine) _scheduleRetry(); // error transitorio (red/servidor) → reintenta solo
         }
       } finally { busy = false; }
     },
@@ -146,6 +148,18 @@
   function _loadSession() { try { return JSON.parse(localStorage.getItem(KEY_AUTH)); } catch (e) { return null; } }
   function _saveSession() { localStorage.setItem(KEY_AUTH, JSON.stringify(session)); }
   function _setState(s) { EmmaSync.state = s; if (typeof EmmaSync.onStateChange === 'function') EmmaSync.onStateChange(s); }
+
+  // Reintento automático de errores transitorios (red/servidor), con backoff: 15s, 45s, luego 2min.
+  // Así "Error al sincronizar" se recupera solo, sin que el usuario tenga que hacer nada.
+  function _scheduleRetry() {
+    if (retryTimer) return;
+    const delays = [15000, 45000, 120000];
+    const d = delays[Math.min(retryN, delays.length - 1)];
+    retryTimer = setTimeout(() => {
+      retryTimer = null; retryN++;
+      if (EmmaSync.state === 'error' && navigator.onLine && EmmaSync.isSignedIn()) EmmaSync.sync();
+    }, d);
+  }
 
   // fetch con timeout (evita que una petición colgada bloquee la app)
   function _fetchTO(url, opts, ms) {
