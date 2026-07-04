@@ -627,7 +627,19 @@ function rangoPeriodo(){
   return{desde:'0000-01-01',hasta:'9999-12-31',label:'todo'};
 }
 function mesCorto(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'short'})+(gastoPeriodo==='todo'?" '"+String(y).slice(2):'');}
+let gastoSoloDup=false;
 function gastoTotalRango(d1,d2){return EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=d1&&d<=d2;}).reduce((s,e)=>s+(Number(e.amount)||0),0);}
+// Gráfico de barras verticales de los 12 meses del año.
+function graficoAnual(anio){
+  const ini=['E','F','M','A','M','J','J','A','S','O','N','D'];const tot=Array(12).fill(0);
+  EmmaStore.getExpenses().forEach(e=>{const d=e.date||'';if(d.slice(0,4)===String(anio)){const mi=parseInt(d.slice(5,7),10)-1;if(mi>=0&&mi<12)tot[mi]+=Number(e.amount)||0;}});
+  const totalAnio=tot.reduce((a,b)=>a+b,0);if(totalAnio<=0)return '';
+  const max=Math.max(1,...tot);const mesAct=(new Date().getFullYear()===anio)?new Date().getMonth():-1;
+  const cols=tot.map((t,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px" title="${ini[i]}: ${moneda(t)}"><div style="width:100%;height:90px;display:flex;align-items:flex-end"><div style="width:64%;margin:0 auto;height:${Math.round(t/max*100)}%;min-height:${t>0?3:0}px;background:${i===mesAct?'var(--acento)':'var(--acento-2)'};border-radius:4px 4px 0 0;opacity:${t>0?1:.22};transition:height .3s"></div></div><div class="pi-meta" style="font-size:10px${i===mesAct?';color:var(--acento);font-weight:700':''}">${ini[i]}</div></div>`).join('');
+  return `<div style="margin-top:14px;border-top:1px solid var(--linea);padding-top:12px"><div class="pi-meta" style="margin-bottom:8px">Gastos ${anio} · <b style="color:var(--texto)">${moneda(totalAnio)}</b></div><div style="display:flex;align-items:flex-end;gap:3px">${cols}</div></div>`;
+}
+// Detecta posibles duplicados: mismo día, monto, categoría y descripción. Devuelve los "extras".
+function gastosDuplicados(lista){const g={};lista.forEach(e=>{const k=[(e.date||''),(Number(e.amount)||0),(e.category||''),(e.description||'').trim().toLowerCase()].join('|');(g[k]=g[k]||[]).push(e);});const ex=[];Object.values(g).forEach(a=>{if(a.length>1)ex.push(...a.slice(1));});return ex;}
 function rangoAnterior(){const d=new Date();const y=d.getFullYear();
   if(gastoPeriodo==='mes'){const m=new Date(y,d.getMonth()-1,1).toISOString().slice(0,7);return{d1:m+'-01',d2:m+'-31',lbl:'mes pasado'};}
   if(gastoPeriodo==='anterior'){const m=new Date(y,d.getMonth()-2,1).toISOString().slice(0,7);return{d1:m+'-01',d2:m+'-31',lbl:'el mes previo'};}
@@ -661,13 +673,9 @@ function renderGastos(){
   const cats=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);const maxCat=cats.length?cats[0][1]:0;
   const catHtml=cats.length?'<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por categoría</div>'+
     cats.map(([c,m])=>`<div class="bar-row"><span class="bar-label">${esc(c)}</span><span class="bar-track"><span class="bar-fill" style="width:${maxCat?Math.round(m/maxCat*100):0}%"></span></span><span class="bar-val">${moneda(m)} <span class="pi-meta">${total?Math.round(m/total*100):0}%</span></span></div>`).join('')+'</div>':'';
-  // por mes (barras)
-  const porMes={};list.forEach(e=>{const m=(e.date||'').slice(0,7);if(m)porMes[m]=(porMes[m]||0)+(Number(e.amount)||0);});
-  const meses=Object.keys(porMes).sort();let barras='';
-  if(meses.length>1){const max=Math.max(...meses.map(m=>porMes[m]));
-    barras='<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por mes</div>'+
-      meses.map(m=>`<div class="bar-row"><span class="bar-label">${mesCorto(m)}</span><span class="bar-track"><span class="bar-fill" style="width:${max?Math.round(porMes[m]/max*100):0}%"></span></span><span class="bar-val">${moneda(porMes[m])}</span></div>`).join('')+'</div>';
-  }
+  // gráfico de barras del año (Ene–Dic) — del año del periodo seleccionado
+  const anioG=parseInt((desde||'').slice(0,4),10)||new Date().getFullYear();
+  const barras=graficoAnual(anioG);
   // métricas rápidas
   const tercer=proyeccion!=null
     ?`<div class="stat"><div class="n" style="font-size:15px">${moneda(proyeccion)}</div><div class="l">proyección mes</div></div>`
@@ -675,8 +683,11 @@ function renderGastos(){
   const statsHtml=count?`<div class="stats3" style="margin-top:12px"><div class="stat"><div class="n" style="font-size:15px">${moneda(promGasto)}</div><div class="l">por gasto</div></div><div class="stat"><div class="n" style="font-size:15px">${moneda(promDia)}</div><div class="l">por día</div></div>${tercer}</div>`:'';
   $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:26px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${count} gasto${count!==1?'s':''}${vsHtml}</div>${statsHtml}${catHtml}${barras}`;
   const cont=$('gastoLista');
-  if(!list.length){cont.innerHTML='<p class="p-vacio">Sin gastos en este periodo.</p>';return;}
-  cont.innerHTML=list.map(e=>`<div class="entrada"><div class="top"><span class="fecha">${moneda(e.amount)}</span><span class="badge">${esc(e.category||'Otro')}</span></div>
+  const dups=gastosDuplicados(list);const dupIds=new Set(dups.map(e=>e.id));
+  const banner=dups.length?`<div class="aviso" style="border-left-color:var(--acento);display:flex;align-items:center;gap:10px;justify-content:space-between">⚠️ ${dups.length} posible${dups.length>1?'s':''} duplicado${dups.length>1?'s':''} <button class="mini" onclick="gastoSoloDup=!gastoSoloDup;renderGastos()">${gastoSoloDup?'Ver todos':'Revisar'}</button></div>`:'';
+  const mostrar=gastoSoloDup?dups:list;
+  if(!mostrar.length){cont.innerHTML=banner+'<p class="p-vacio">'+(gastoSoloDup?'No hay duplicados. 🎉':'Sin gastos en este periodo.')+'</p>';return;}
+  cont.innerHTML=banner+mostrar.map(e=>`<div class="entrada"><div class="top"><span class="fecha">${moneda(e.amount)}</span><span class="badge">${esc(e.category||'Otro')}</span>${dupIds.has(e.id)?'<span class="badge" style="background:var(--acento);color:#fff">⚠️ duplicado</span>':''}</div>
     <div class="pi-meta">${fechaCorta(e.date)}</div>${e.description?`<div class="cuerpo">${esc(e.description)}</div>`:''}
     <div class="acc">${e.receiptPhotoId?`<button class="mini" onclick="openSheet('${e.receiptPhotoId}')">Ver boleta</button>`:''}<button class="mini del" onclick="eliminarGasto('${e.id}')">Eliminar</button></div></div>`).join('');
 }
