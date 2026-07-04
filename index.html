@@ -192,6 +192,8 @@
   .bar-track{flex:1;background:var(--acento-suave);border-radius:6px;height:14px;overflow:hidden;}
   .bar-fill{display:block;height:100%;background:var(--acento);border-radius:6px;}
   .bar-val{width:78px;text-align:right;font-weight:600;flex:0 0 78px;}
+  .bar-row.tend .bar-label{flex:0 0 92px;width:92px;}
+  .bar-row.vacia{opacity:.4;}
   #x-rango{display:none;gap:8px;margin-bottom:10px;}
   #x-rango input{width:auto;flex:1;padding:10px 12px;font-size:14px;}
 
@@ -959,8 +961,12 @@ function _arr(v){return Array.isArray(v)?v:(v?[v]:[]);}
 function getMilestones(){
   const entries=(EmmaStore.getEntries()||[]).filter(e=>!e.deleted&&e.date).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')); // ascendente
   const seen={w:{},f:{},a:{}};const out=[];
+  // Palabras: excluir tokens que en realidad son comidas/frutas o nombres de categoría (no palabras dichas por Emma)
+  const exclPalabra=new Set(['fruta','frutas','comida','comidas','bebida','bebidas','snack','snacks','verdura','verduras','postre','postres','actividad','actividades','lugar','lugares','animal','animales','cancion','canciones','palabra','palabras','otro','otros']);
+  entries.forEach(e=>{[].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(k)exclPalabra.add(k);});});
+  try{((EmmaStore.getProfileItems&&EmmaStore.getProfileItems())||[]).forEach(it=>{const c=String(it.category||'').toLowerCase();if(c==='food'||c==='fruit'){const k=_normTok(it.name);if(k)exclPalabra.add(k);}});}catch(_){}
   entries.forEach(e=>{
-    _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k])return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
+    _arr(e.newWords).forEach(w=>{const k=_normTok(w);if(!k||seen.w[k]||exclPalabra.has(k))return;seen.w[k]=1;out.push({date:e.date,type:'palabra',text:'Primera palabra: '+w});});
     [].concat(_arr(e.foods),_arr(e.fruits)).forEach(f=>{const k=_normTok(f);if(!k||seen.f[k])return;seen.f[k]=1;out.push({date:e.date,type:'comida',text:'Primera vez que probó: '+f});});
     _arr(e.activities).forEach(a=>{if(a==='Otro')return;const k=_normTok(a);if(!k||seen.a[k])return;seen.a[k]=1;out.push({date:e.date,type:'actividad',text:'Nueva actividad: '+a});});
     const nota=(e.note||'').trim();if(nota&&/primera vez/i.test(nota))out.push({date:e.date,type:'primera',text:nota.slice(0,120)});
@@ -968,7 +974,7 @@ function getMilestones(){
   (window.EmmaNotes?EmmaNotes.getNotes():[]).filter(n=>!n.deleted&&n.date&&(n.text||'').trim()).forEach(n=>{const t=(n.text||'').trim();if(n.isImportant||/primera vez/i.test(t))out.push({date:n.date,type:n.isImportant?'importante':'primera',text:t.slice(0,120)});});
   out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // más reciente primero
   return out;}
-function _tipoHito(t){return({palabra:'🗣️ Palabra',comida:'🍎 Comida',actividad:'🎨 Actividad',primera:'⭐ Primera vez',importante:'⭐ Importante'})[t]||t;}
+function _tipoHito(t){return({palabra:'Palabra',comida:'Comida',actividad:'Actividad',primera:'Primera vez',importante:'Importante'})[t]||t;}
 function renderHitos(){
   const m=getMilestones();
   if(!m.length)return '<p class="p-vacio">Aún no hay hitos. Registra momentos con palabras, comidas o actividades nuevas.</p>';
@@ -988,12 +994,12 @@ function renderTendencias(){
   const t=computeTendencias();
   const hayAlgo=t.semanas.some(s=>s.total>0)||t.acept||t.rech;
   if(!hayAlgo)return '<p class="p-vacio">Aún no hay suficientes registros para ver tendencias.</p>';
-  const barra=(label,pct,val)=>`<div class="bar-row"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(0,Math.min(100,Math.round(pct)))}%"></span></span><span class="bar-val">${esc(String(val))}</span></div>`;
-  const anim=t.semanas.map(s=>barra(s.lbl,s.moodN?s.pos/s.moodN*100:0,s.moodN?Math.round(s.pos/s.moodN*100)+'%':'—')).join('');
+  const barra=(label,pct,val,vacia)=>`<div class="bar-row tend${vacia?' vacia':''}"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(0,Math.min(100,Math.round(pct)))}%"></span></span><span class="bar-val">${esc(String(val))}</span></div>`;
+  const anim=t.semanas.map(s=>barra(s.lbl,s.moodN?s.pos/s.moodN*100:0,s.moodN?Math.round(s.pos/s.moodN*100)+'%':'—',!s.moodN)).join('');
   const maxC=Math.max(1,t.acept,t.rech);
   const com=barra('Aceptadas',t.acept/maxC*100,t.acept)+barra('Rechazadas',t.rech/maxC*100,t.rech);
   const maxM=Math.max(1,...t.semanas.map(s=>s.total));
-  const mom=t.semanas.map(s=>barra(s.lbl,s.total/maxM*100,s.total)).join('');
+  const mom=t.semanas.map(s=>barra(s.lbl,s.total/maxM*100,s.total,!s.total)).join('');
   return `<div class="p-bloque" style="margin-bottom:12px"><h3>Ánimo por semana</h3><div class="pi-meta" style="margin-bottom:6px">% de registros con ánimo positivo</div>${anim}</div>
     <div class="p-bloque" style="margin-bottom:12px"><h3>Comidas</h3><div class="pi-meta" style="margin-bottom:6px">Aceptadas vs rechazadas (6 semanas)</div>${com}</div>
     <div class="p-bloque"><h3>Momentos por semana</h3><div class="pi-meta" style="margin-bottom:6px">Constancia del registro</div>${mom}</div>`;}
