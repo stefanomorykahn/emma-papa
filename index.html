@@ -659,6 +659,11 @@ function quitarBoleta(){if(boletaPendiente&&boletaPendiente.previewUrl)try{URL.r
 async function procesarFotos(entry){
   const pend=fotosPendientes.slice();fotosPendientes=[];renderFotoPrev();
   if(!pend.length||!window.EmmaPhotos)return;
+  // Si hay archivos por subir y Drive no está conectado, conecta ahora (aún dentro
+  // del gesto del botón, para que el popup de Google no se bloquee).
+  if(pend.some(f=>f.file)&&EmmaPhotos.driveEnabled()&&!EmmaPhotos.isConnected()){
+    try{await EmmaPhotos.connect();}catch(e){toast('Conecta Google Drive en Ajustes para subir fotos');}
+  }
   const tags=[...(entry.activities||[]),...(entry.foods||[])];
   for(const f of pend){
     try{

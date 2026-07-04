@@ -14,7 +14,9 @@ const EmmaPhotos = (function () {
   const CFG = window.SUPABASE_CONFIG || {};
   const FOLDER_ID = CFG.GOOGLE_DRIVE_PHOTOS_FOLDER_ID || '';
   const CLIENT_ID = CFG.GOOGLE_CLIENT_ID || '';
-  const SCOPE = 'https://www.googleapis.com/auth/drive.file openid email profile';
+  // Acceso completo a Drive: permite subir a TU carpeta pre-creada (no solo a las que
+  // crea la app). Viable sin verificación de Google porque el OAuth es "Interno".
+  const SCOPE = 'https://www.googleapis.com/auth/drive openid email profile';
   const MAX_W = 1600;
 
   let token = null, tokenExp = 0, email = '', tokenClient = null, gisReady = false;
