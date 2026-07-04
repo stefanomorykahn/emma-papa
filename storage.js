@@ -161,6 +161,32 @@ const EmmaStore = (function () {
   function setPhTombstones(o) { _write(KEY_PH_DEL, o || {}); }
   function _setPhotosRaw(arr) { _write(KEY_PHOTOS, arr || []); }
 
+  /* ---------- Gastos (S/) ---------- */
+  const KEY_EXP = 'emmaExpenses';
+  const KEY_EXP_DEL = 'emmaExpensesDeleted';
+  function getExpenses() { return _read(KEY_EXP, []); }
+  function saveExpense(e) {
+    const arr = getExpenses(); const now = new Date().toISOString();
+    e.id = e.id || _uuid(); e.createdAt = e.createdAt || now; e.updatedAt = now;
+    e.amount = Number(e.amount) || 0;
+    arr.push(e); _write(KEY_EXP, arr); _notify(); return e;
+  }
+  function updateExpense(id, patch) {
+    const arr = getExpenses(); const i = arr.findIndex(x => x.id === id);
+    if (i < 0) return null;
+    arr[i] = { ...arr[i], ...patch, id, updatedAt: new Date().toISOString() };
+    arr[i].amount = Number(arr[i].amount) || 0;
+    _write(KEY_EXP, arr); _notify(); return arr[i];
+  }
+  function deleteExpense(id) {
+    _write(KEY_EXP, getExpenses().filter(x => x.id !== id));
+    const t = getExpTombstones(); t[id] = new Date().toISOString(); _write(KEY_EXP_DEL, t);
+    _notify();
+  }
+  function getExpTombstones() { return _read(KEY_EXP_DEL, {}); }
+  function setExpTombstones(o) { _write(KEY_EXP_DEL, o || {}); }
+  function _setExpensesRaw(arr) { _write(KEY_EXP, arr || []); }
+
   /* ---------- Helpers de sincronización (usados por supabase-sync.js) ---------- */
   function getTombstones() { return _read(KEY_DELETED, {}); }
   function setTombstones(obj) { _write(KEY_DELETED, obj || {}); }
@@ -213,6 +239,8 @@ const EmmaStore = (function () {
     localStorage.removeItem(KEY_ANALYSES);
     localStorage.removeItem(KEY_PHOTOS);
     localStorage.removeItem(KEY_PH_DEL);
+    localStorage.removeItem(KEY_EXP);
+    localStorage.removeItem(KEY_EXP_DEL);
     localStorage.removeItem('emmaSeeded');
   }
 
@@ -372,6 +400,8 @@ const EmmaStore = (function () {
     getAnalyses, saveAnalysis, markEntryStatus, _setAnalysesRaw,
     // fotos (metadata)
     getPhotos, savePhoto, updatePhoto, deletePhoto, getPhTombstones, setPhTombstones, _setPhotosRaw,
+    // gastos (S/)
+    getExpenses, saveExpense, updateExpense, deleteExpense, getExpTombstones, setExpTombstones, _setExpensesRaw,
     // helpers de sync
     getTombstones, setTombstones, _setEntriesRaw, _setNotesRaw,
     getPiTombstones, setPiTombstones, _setProfileItemsRaw, uuid,

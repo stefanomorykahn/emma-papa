@@ -48,3 +48,4 @@
 # Nunca subir basura del sistema
 .DS_Store
 **/.DS_Store
+supabase/.temp/
