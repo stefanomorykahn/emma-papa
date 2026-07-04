@@ -12,8 +12,8 @@
      • Project API keys → anon public -> SUPABASE_ANON_KEY
    ============================================================ */
 window.SUPABASE_CONFIG = {
-  SUPABASE_URL:      '',   // ej: 'https://abcdxyz.supabase.co'
-  SUPABASE_ANON_KEY: '',   // ej: 'eyJhbGciOi...'  (clave anon public, no la service_role)
+  SUPABASE_URL:      'https://coxescprzaqxxlcjeggq.supabase.co',   // ej: 'https://abcdxyz.supabase.co'
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNveGVzY3ByemFxeHhsY2plZ2dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMzgzMTQsImV4cCI6MjA5ODcxNDMxNH0.zqQbK0SWhaXlsKhtM6mYT4uNbCL6jX4MqDIWhtZcyYI',   // ej: 'eyJhbGciOi...'  (clave anon public, no la service_role)
 
   // ---- IA (OpenAI vía Edge Function) · OPCIONAL ----
   // Ponlo en true SOLO después de desplegar la Edge Function "emma-ai" (ver AI.md).
