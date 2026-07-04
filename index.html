@@ -414,6 +414,7 @@
     <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" />
     <div class="login-error" id="loginError"></div>
     <button class="guardar" id="loginBtn" onclick="hacerLogin()">Entrar</button>
+    <p class="login-nota"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a></p>
     <p class="login-nota">Tus datos se guardan en este dispositivo aunque no inicies sesión.</p>
   </div>
 </div>
@@ -954,14 +955,38 @@ function actualizarEstado(){const el=$('estadoGuardado');
   else el.innerHTML=navigator.onLine?'<span class="punto"></span> Guardado':'<span class="punto offline"></span> Sin conexión';}
 window.addEventListener('online',actualizarEstado);window.addEventListener('offline',actualizarEstado);
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
-  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
 function abrirCambioPwd(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}$('pwdNew').value='';$('pwdNew2').value='';$('pwdError').textContent='';$('pwdOverlay').classList.add('show');}
+// Si el usuario llegó desde el enlace de recuperación del email (#...type=recovery&access_token=...),
+// guarda esa sesión temporal y abre "Cambiar contraseña" para definir una nueva.
+function manejarRecoveryHash(){
+  const h=location.hash||'';
+  if(h.indexOf('type=recovery')<0||h.indexOf('access_token')<0)return false;
+  const p=new URLSearchParams(h.replace(/^#/,''));
+  const at=p.get('access_token'),rt=p.get('refresh_token');
+  if(!at||!window.EmmaSync||!EmmaSync.setSessionFromTokens)return false;
+  EmmaSync.setSessionFromTokens(at,rt);
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  setTimeout(()=>{$('loginOverlay').classList.remove('show');$('pwdNew').value='';$('pwdNew2').value='';$('pwdError').textContent='';$('pwdOverlay').classList.add('show');toast('Define tu nueva contraseña');},150);
+  return true;
+}
+let pendientePwd=false; // reintentar el cambio de contraseña tras re-iniciar sesión
 function hacerCambioPwd(){const p1=$('pwdNew').value,p2=$('pwdNew2').value,err=$('pwdError');err.textContent='';
-  if(p1.length<6){err.textContent='Mínimo 6 caracteres.';return;}
+  if(p1.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return;}
   if(p1!==p2){err.textContent='Las contraseñas no coinciden.';return;}
+  const emailActual=(window.EmmaSync&&EmmaSync.currentEmail&&EmmaSync.currentEmail())||'';
   $('pwdBtn').disabled=true;$('pwdBtn').textContent='Guardando…';
-  EmmaSync.changePassword(p1).then(()=>{$('pwdOverlay').classList.remove('show');toast('Contraseña actualizada ✓');}).catch(e=>err.textContent=e.message||'No se pudo cambiar.').finally(()=>{$('pwdBtn').disabled=false;$('pwdBtn').textContent='Guardar contraseña';});}
+  EmmaSync.changePassword(p1).then(()=>{$('pwdOverlay').classList.remove('show');pendientePwd=false;$('pwdNew').value='';$('pwdNew2').value='';toast('Contraseña actualizada ✓');})
+    .catch(e=>{
+      if(e&&e.sessionExpired){pendientePwd=true;$('pwdOverlay').classList.remove('show');$('loginError').textContent='Tu sesión expiró, vuelve a iniciar sesión.';if(!$('loginEmail').value)$('loginEmail').value=emailActual;$('loginOverlay').classList.add('show');toast('Tu sesión expiró');}
+      else err.textContent=(e&&e.message)||'No se pudo cambiar la contraseña.';
+    })
+    .finally(()=>{$('pwdBtn').disabled=false;$('pwdBtn').textContent='Guardar contraseña';});}
+function recuperarPwd(){const email=$('loginEmail').value.trim(),err=$('loginError');
+  if(!email){err.textContent='Escribe tu correo arriba y toca de nuevo.';return;}
+  err.textContent='';toast('Enviando correo…');
+  EmmaSync.recoverPassword(email).then(()=>toast('Te enviamos un correo para recuperar tu contraseña 📧')).catch(e=>{err.textContent=(e&&e.message)||'No se pudo enviar el correo.';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
 window.onEmmaSynced=function(){if(window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();refrescarVista();};
@@ -974,7 +999,7 @@ function init(){
   ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));
   $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
   rebuildProfile();
-  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
+  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
   actualizarEstado();renderInicio();
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 }

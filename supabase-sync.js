@@ -53,15 +53,61 @@
     },
     signOut() { session = null; localStorage.removeItem(KEY_AUTH); _setState('signed-out'); },
 
+    // Valida que la sesión guardada siga viva. Si el JWT ya no apunta a una sesión real
+    // ("Session ... does not exist"), intenta refrescar; si tampoco, cierra sesión y
+    // lanza un error con .sessionExpired = true. Devuelve un access_token fresco.
+    async ensureFreshSession() {
+      if (!session || !session.access_token) { const e = new Error('Tu sesión expiró, vuelve a iniciar sesión.'); e.sessionExpired = true; throw e; }
+      let r;
+      try {
+        r = await _fetchTO(URL_BASE + '/auth/v1/user', { headers: { apikey: ANON, Authorization: 'Bearer ' + session.access_token } }, 15000);
+      } catch (e) { const ne = new Error('Sin conexión. Revisa tu internet e intenta de nuevo.'); ne.network = true; throw ne; }
+      if (r.ok) return session.access_token;
+      // Token inválido / sesión inexistente → intentar refresh
+      try { await _refresh(); return session.access_token; }
+      catch (e) { EmmaSync.signOut(); const se = new Error('Tu sesión expiró, vuelve a iniciar sesión.'); se.sessionExpired = true; throw se; }
+    },
+
+    // Guarda una sesión a partir de tokens externos (ej. enlace de recuperación por email).
+    setSessionFromTokens(access_token, refresh_token) {
+      let p = {}; try { p = JSON.parse(atob(access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) {}
+      session = { access_token: access_token, refresh_token: refresh_token || '',
+        expires_at: p.exp ? p.exp * 1000 : (Date.now() + 3600 * 1000), user_id: p.sub || '', email: p.email || '' };
+      _saveSession();
+      return session;
+    },
+
     async changePassword(newPassword) {
-      if (!EmmaSync.isSignedIn()) throw new Error('Inicia sesión primero.');
-      if (session && session.expires_at && Date.now() > session.expires_at - 60000) await _refresh();
-      const r = await _fetchTO(URL_BASE + '/auth/v1/user', {
-        method: 'PUT',
-        headers: { apikey: ANON, Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword })
-      }, 15000);
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.msg || e.error_description || e.message || ('No se pudo cambiar (HTTP ' + r.status + ')')); }
+      if (!EmmaSync.isSignedIn()) { const e = new Error('Tu sesión expiró, vuelve a iniciar sesión.'); e.sessionExpired = true; throw e; }
+      const token = await EmmaSync.ensureFreshSession(); // valida/refresca (puede lanzar sessionExpired/network)
+      let r;
+      try {
+        r = await _fetchTO(URL_BASE + '/auth/v1/user', {
+          method: 'PUT',
+          headers: { apikey: ANON, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: newPassword })
+        }, 15000);
+      } catch (e) { const ne = new Error('Sin conexión. Revisa tu internet e intenta de nuevo.'); ne.network = true; throw ne; }
+      if (r.ok) return true;
+      let data = {}; try { data = await r.json(); } catch (e) {}
+      const raw = String(data.msg || data.error_description || data.message || data.error || '').toLowerCase();
+      if (r.status === 401 || r.status === 403 || raw.indexOf('session') >= 0 || raw.indexOf('jwt') >= 0) {
+        EmmaSync.signOut(); const se = new Error('Tu sesión expiró, vuelve a iniciar sesión.'); se.sessionExpired = true; throw se;
+      }
+      if (raw.indexOf('at least') >= 0 || raw.indexOf('6 char') >= 0 || raw.indexOf('length') >= 0 || raw.indexOf('short') >= 0) throw new Error('La contraseña debe tener al menos 6 caracteres.');
+      if (raw.indexOf('different') >= 0 || raw.indexOf('same') >= 0) throw new Error('La nueva contraseña debe ser distinta a la actual.');
+      if (raw.indexOf('weak') >= 0 || raw.indexOf('pwned') >= 0 || raw.indexOf('breach') >= 0) throw new Error('Contraseña demasiado débil. Usa una más segura.');
+      throw new Error('No se pudo cambiar la contraseña. Intenta de nuevo.');
+    },
+
+    // Dispara el email de recuperación de contraseña.
+    async recoverPassword(email) {
+      email = String(email || (session && session.email) || '').trim();
+      if (!email) throw new Error('Escribe tu correo primero.');
+      let r;
+      try { r = await _fetchTO(URL_BASE + '/auth/v1/recover', { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) }, 15000); }
+      catch (e) { throw new Error('Sin conexión. Intenta de nuevo.'); }
+      if (!r.ok) throw new Error('No se pudo enviar el correo de recuperación.');
       return true;
     },
 
