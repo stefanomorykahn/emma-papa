@@ -184,7 +184,7 @@ const EmmaProfile = (function () {
       (A.activities || []).forEach(x => put('activities', x.name, iaSent(x.sentiment), x.evidence, x.confidence));
       (A.calming_things || []).forEach(x => put('calming', x.name, 'pos', x.evidence, x.confidence));
       (A.frustrations || []).forEach(x => put('frustrations', x.name, 'neg', x.evidence, x.confidence));
-      (A.new_words || []).forEach(x => put('language', x.word, 'neu', x.context, x.confidence));
+      (A.new_words || []).forEach(x => { if (!esTokenComida(x.word)) put('language', x.word, 'neu', x.context, x.confidence); });
       (A.places || []).forEach(x => put('places', x.name, iaSent(x.sentiment), x.evidence, x.confidence));
       (A.people || []).forEach(x => put('people', x.name, 'neu', x.evidence, x.confidence));
       if (A.important_memory) memories.push({ date, text: A.important_memory, kind: 'IA' });
