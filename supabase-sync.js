@@ -53,6 +53,18 @@
     },
     signOut() { session = null; localStorage.removeItem(KEY_AUTH); _setState('signed-out'); },
 
+    async changePassword(newPassword) {
+      if (!EmmaSync.isSignedIn()) throw new Error('Inicia sesión primero.');
+      if (session && session.expires_at && Date.now() > session.expires_at - 60000) await _refresh();
+      const r = await _fetchTO(URL_BASE + '/auth/v1/user', {
+        method: 'PUT',
+        headers: { apikey: ANON, Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword })
+      }, 15000);
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.msg || e.error_description || e.message || ('No se pudo cambiar (HTTP ' + r.status + ')')); }
+      return true;
+    },
+
     async sync() {
       if (!CONFIGURED) { _setState('local'); return; }
       if (!EmmaSync.isSignedIn()) { _setState('signed-out'); return; }
@@ -83,13 +95,20 @@
   function _saveSession() { localStorage.setItem(KEY_AUTH, JSON.stringify(session)); }
   function _setState(s) { EmmaSync.state = s; if (typeof EmmaSync.onStateChange === 'function') EmmaSync.onStateChange(s); }
 
+  // fetch con timeout (evita que una petición colgada bloquee la app)
+  function _fetchTO(url, opts, ms) {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), ms || 15000);
+    return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(to));
+  }
+
   /* ---------- Fetch autenticado ---------- */
   async function _authFetch(path, opts, _retry) {
     opts = opts || {};
     if (session && session.expires_at && Date.now() > session.expires_at - 60000) await _refresh();
     const headers = Object.assign({ apikey: ANON, Authorization: 'Bearer ' + (session ? session.access_token : ''),
       'Content-Type': 'application/json' }, opts.headers || {});
-    const r = await fetch(URL_BASE + path, Object.assign({}, opts, { headers }));
+    const r = await _fetchTO(URL_BASE + path, Object.assign({}, opts, { headers }), 15000);
     if (r.status === 401 && !_retry) { await _refresh(); return _authFetch(path, opts, true); }
     if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + path);
     return r;
@@ -204,6 +223,24 @@
       fromRow: r => ({ id: r.id, entryId: r.entry_id, analysis_json: r.analysis_json,
         model_used: r.model_used || '', input_tokens: r.input_tokens || 0, output_tokens: r.output_tokens || 0,
         estimated_cost: r.estimated_cost || 0, createdAt: r.created_at || '', updatedAt: r.created_at || '' })
+    },
+    { // emma_expenses (gastos en S/)
+      path: '/rest/v1/emma_expenses',
+      localAll: () => EmmaStore.getExpenses(),
+      setAll: a => EmmaStore._setExpensesRaw(a),
+      tombs: () => EmmaStore.getExpTombstones(),
+      setTombs: o => EmmaStore.setExpTombstones(o),
+      toRow: (e, owner) => ({
+        id: e.id, user_id: owner, entry_id: e.entryId || null, date: e.date || null,
+        amount: Number(e.amount) || 0, category: e.category || null, description: e.description || null,
+        receipt_photo_id: e.receiptPhotoId || null,
+        created_at: e.createdAt || null, updated_at: e.updatedAt || new Date().toISOString(), deleted: false
+      }),
+      fromRow: r => ({
+        id: r.id, entryId: r.entry_id || null, date: r.date || '', amount: Number(r.amount) || 0,
+        category: r.category || '', description: r.description || '', receiptPhotoId: r.receipt_photo_id || '',
+        createdAt: r.created_at || '', updatedAt: r.updated_at || ''
+      })
     }
   ];
 

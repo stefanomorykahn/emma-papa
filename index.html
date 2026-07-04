@@ -169,6 +169,15 @@
   .sheet-img{width:100%;border-radius:14px;background:var(--acento-suave);max-height:50vh;object-fit:cover;margin-bottom:12px;display:block;}
   .sheet-ph{width:100%;border-radius:14px;background:var(--acento-suave);aspect-ratio:4/3;display:grid;place-items:center;color:var(--acento);margin-bottom:12px;font-size:40px;}
 
+  /* Barras de analítica de gastos */
+  .bar-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px;}
+  .bar-label{width:58px;color:var(--suave);text-transform:capitalize;flex:0 0 58px;}
+  .bar-track{flex:1;background:var(--acento-suave);border-radius:6px;height:14px;overflow:hidden;}
+  .bar-fill{height:100%;background:var(--acento);border-radius:6px;}
+  .bar-val{width:78px;text-align:right;font-weight:600;flex:0 0 78px;}
+  #x-rango{display:none;gap:8px;margin-bottom:10px;}
+  #x-rango input{width:auto;flex:1;padding:10px 12px;font-size:14px;}
+
   .nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;background:rgba(255,253,249,.97);backdrop-filter:blur(10px);border-top:1px solid var(--linea);padding-bottom:var(--safe-bottom);}
   .nav button{flex:1;background:none;border:none;cursor:pointer;padding:9px 0 7px;color:var(--suave);font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;}
   .nav button .ni{line-height:1;} .nav .ic{width:21px;height:21px;} .nav button.on{color:var(--acento);}
@@ -209,6 +218,10 @@
       <button class="card-sec" onclick="ir('comidas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M8 3v18"/><path d="M16 3c-1.5 0-2.5 2-2.5 5s1 4 2.5 4v9"/></svg></span><span><span class="t">Comidas de Emma</span><br><span class="s">Registro rápido</span></span></button>
       <button class="card-sec" onclick="ir('galeria')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 4"/></svg></span><span><span class="t">Galería</span><br><span class="s">Fotos de Emma</span></span></button>
     </div>
+    <button class="btn-full" onclick="ir('gastos')" style="margin-bottom:var(--sp4);box-shadow:var(--sombra)">
+      <span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1"/></svg></span>
+      <span>Gastos de Emma</span><span style="margin-left:auto;color:var(--suave);font-size:12px" id="gastoMesHint"></span>
+    </button>
 
     <div class="stats3">
       <div class="stat"><div class="n" id="statTotal">0</div><div class="l">momentos</div></div>
@@ -239,6 +252,7 @@
     <div class="campo"><label>Palabra nueva <span class="op">(opcional)</span></label>
       <input type="text" id="r-palabra" list="dl-word" placeholder="Ej. 'papá'" /><datalist id="dl-word"></datalist></div>
     <div class="campo"><label>Nota rápida <span class="op">(opcional · dicta 🎙️)</span></label><textarea id="r-nota" placeholder="Algo para recordar…"></textarea></div>
+    <div class="campo"><label>Gasto <span class="op">(opcional, S/)</span></label><input type="text" id="r-gasto-monto" inputmode="decimal" placeholder="Ej. 25.50" /></div>
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
@@ -276,6 +290,27 @@
       <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
     <button class="guardar" onclick="guardarComida()">Guardar comida</button>
+  </section>
+
+  <!-- ===== GASTOS ===== -->
+  <section class="vista" id="v-gastos">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Gastos de Emma</h2></div>
+    <div id="gastoEditor">
+      <div class="fecha-linea"><span>Fecha:</span><input type="date" id="x-date" /></div>
+      <div class="campo"><label>Monto (S/)</label><input type="text" id="x-monto" inputmode="decimal" placeholder="Ej. 25.50" /></div>
+      <div class="campo"><label>Categoría</label><div class="chips" id="x-cat"></div></div>
+      <div class="campo"><label>Descripción <span class="op">(opcional)</span></label><input type="text" id="x-desc" placeholder="Ej. pañales, ropa, juguete" /></div>
+      <div class="campo"><label>Constancia / boleta <span class="op">(opcional)</span></label>
+        <div class="foto-chips" id="x-foto"></div>
+        <button type="button" class="mini" onclick="pickGastoFoto()">＋ Foto de la boleta</button>
+        <input type="file" id="x-foto-input" accept="image/*" style="display:none" onchange="onGastoFotoPick(event)" />
+      </div>
+      <button class="guardar" id="x-guardar" onclick="guardarGasto()">Guardar gasto</button>
+    </div>
+    <div class="chips scroll" id="x-periodo" style="margin-top:16px;margin-bottom:10px"></div>
+    <div id="x-rango"><input type="date" id="x-desde" onchange="renderGastos()" /><input type="date" id="x-hasta" onchange="renderGastos()" /></div>
+    <div class="p-bloque" id="gastoResumen"></div>
+    <div id="gastoLista"></div>
   </section>
 
   <!-- ===== GALERÍA ===== -->
@@ -335,6 +370,7 @@
       <button class="btn-full" onclick="ir('historial')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 4h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 5.5V19"/></svg></span> Historial</button>
       <button class="btn-full" onclick="ir('notas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span> Notas de papá</button>
       <button class="btn-full" onclick="ir('galeria')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 4"/></svg></span> Galería de fotos</button>
+      <button class="btn-full" onclick="ir('gastos')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1"/></svg></span> Gastos de Emma</button>
       <button class="btn-full" onclick="actualizarPerfil('btnUpdAjustes')" id="btnUpdAjustes"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4h-4"/></svg></span> Actualizar perfil</button>
     </div>
     <div class="grupo-btns"><h3>Copiar para Claude</h3>
@@ -382,6 +418,17 @@
   </div>
 </div>
 
+<div class="login-overlay" id="pwdOverlay">
+  <div class="login-card"><div class="login-logo">🔑</div><h2>Cambiar contraseña</h2>
+    <p class="login-sub">Escribe tu nueva contraseña (mínimo 6 caracteres).</p>
+    <input type="password" id="pwdNew" placeholder="Nueva contraseña" autocomplete="new-password" />
+    <input type="password" id="pwdNew2" placeholder="Repite la contraseña" autocomplete="new-password" />
+    <div class="login-error" id="pwdError"></div>
+    <button class="guardar" id="pwdBtn" onclick="hacerCambioPwd()">Guardar contraseña</button>
+    <p class="login-nota"><a href="#" onclick="document.getElementById('pwdOverlay').classList.remove('show');return false;">Cancelar</a></p>
+  </div>
+</div>
+
 <script src="storage.js"></script>
 <script src="notes.js"></script>
 <script src="profile.js"></script>
@@ -407,7 +454,7 @@ function ir(v){document.querySelectorAll('.vista').forEach(x=>x.classList.remove
   if(v==='rapido'){fotoTarget='r-fotos';fotoInputId='r-foto-input';}
   if(v==='comidas'){fotoTarget='c-fotos';fotoInputId='c-foto-input';fotosPendientes=[];}
   if(v==='inicio')renderInicio();if(v==='rapido')refrescarChipsRapido();if(v==='historial')renderHistorial();
-  if(v==='perfil')renderPerfil();if(v==='notas')renderNotas();if(v==='ajustes')renderAjustes();if(v==='ideas')initIdeas();if(v==='comidas')initComidas();if(v==='galeria')renderGaleria();}
+  if(v==='perfil')renderPerfil();if(v==='notas')renderNotas();if(v==='ajustes')renderAjustes();if(v==='ideas')initIdeas();if(v==='comidas')initComidas();if(v==='galeria')renderGaleria();if(v==='gastos')initGastos();}
 
 /* ===== Registro rápido ===== */
 let sel={estado:'',actividades:[],comidas:[],resultado:''};let editandoId=null;
@@ -438,8 +485,10 @@ function guardarRapido(){const g=id=>$(id).value.trim();const foods=comidasFinal
   if(editandoId){entry=EmmaStore.updateEntry(editandoId,e);editandoId=null;toast('Actualizado ✓');}else{entry=EmmaStore.saveEntry(e);toast('Guardado ✓');}
   rebuildProfile();
   if(fotosPendientes.length&&entry)procesarFotos(entry); // sube en segundo plano
+  const gm=parseMonto($('r-gasto-monto').value);
+  if(gm>0&&entry)EmmaStore.saveExpense({entryId:entry.id,date:entry.date,amount:gm,category:(foods.length?'Comida':'Otro'),description:g('r-nota')||(sel.actividades.join(', '))});
   limpiarRapido();ir('inicio');}
-function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).value='');
+function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-comida-otro','r-gasto-monto'].forEach(id=>$(id).value='');
   $('r-date').value=hoyISO();$('r-comida-otro').style.display='none';$('campo-resultado').style.display='none';localStorage.removeItem('emmaDraftQuick');refrescarChipsRapido();validarRapido();
   fotosPendientes=[];renderFotoPrev();}
 function guardarBorrador(){localStorage.setItem('emmaDraftQuick',JSON.stringify({date:$('r-date').value,sel,gusto:$('r-gusto').value,palabra:$('r-palabra').value,nota:$('r-nota').value,otro:$('r-comida-otro').value}));}
@@ -473,6 +522,79 @@ function guardarComida(){
   comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};$('c-nota').value='';$('c-otro').value='';$('c-otro').style.display='none';
   toast('Comida guardada ✓');ir('inicio');
 }
+
+/* ===== Gastos (S/) ===== */
+const GASTO_CATS=['Comida','Ropa','Pañales','Juguetes','Salud','Colegio','Actividades','Transporte','Regalos','Otro'];
+let gastoSel={cat:''}; let gastoFoto=null; // {file?,url?,previewUrl}
+function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
+function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
+function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses().filter(e=>(e.date||'').slice(0,7)===mes).reduce((s,e)=>s+(Number(e.amount)||0),0);}
+function initGastos(){
+  if(!$('x-date').value)$('x-date').value=hoyISO();
+  chipsSingle('x-cat',GASTO_CATS,'cat',gastoSel);
+  renderGastoFotoPrev();renderGastos();
+}
+function pickGastoFoto(){
+  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$('x-foto-input').click();}
+  else{const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){gastoFoto={url:u.trim(),previewUrl:''};renderGastoFotoPrev();}}
+}
+function onGastoFotoPick(ev){const f=ev.target.files[0];if(f){gastoFoto={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderGastoFotoPrev();}
+function renderGastoFotoPrev(){const c=$('x-foto');if(!c)return;
+  c.innerHTML=gastoFoto?`<div class="foto-prev">${gastoFoto.previewUrl?`<img src="${gastoFoto.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarGastoFoto()">×</button></div>`:'';}
+function quitarGastoFoto(){if(gastoFoto&&gastoFoto.previewUrl)try{URL.revokeObjectURL(gastoFoto.previewUrl);}catch(e){}gastoFoto=null;renderGastoFotoPrev();}
+async function guardarGasto(){
+  const amount=parseMonto($('x-monto').value);
+  if(!(amount>0)){toast('Escribe un monto');return;}
+  const exp=EmmaStore.saveExpense({date:$('x-date').value||hoyISO(),amount,category:gastoSel.cat||'Otro',description:$('x-desc').value.trim()});
+  const f=gastoFoto;gastoFoto=null;
+  if(f&&window.EmmaPhotos){
+    try{let ph;
+      if(f.file){toast('Subiendo boleta…');ph=await EmmaPhotos.addFromFile(f.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      else if(f.url){ph=EmmaPhotos.addFromLink(f.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+      if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
+    }catch(err){toast('No se pudo subir la boleta');}
+  }
+  gastoSel={cat:''};$('x-monto').value='';$('x-desc').value='';
+  toast('Gasto guardado ✓');initGastos();
+}
+let gastoPeriodo='mes';
+const PERIODOS=[['mes','Este mes'],['anterior','Mes pasado'],['anio','Este año'],['todo','Todo'],['rango','Rango…']];
+function setGastoPeriodo(k){gastoPeriodo=k;$('x-rango').style.display=(k==='rango')?'flex':'none';
+  if(k==='rango'&&!$('x-desde').value){const d=new Date();$('x-desde').value=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);$('x-hasta').value=hoyISO();}
+  renderGastos();}
+function rangoPeriodo(){
+  const d=new Date();const y=d.getFullYear();
+  if(gastoPeriodo==='mes'){const m=hoyISO().slice(0,7);return{desde:m+'-01',hasta:m+'-31',label:'este mes'};}
+  if(gastoPeriodo==='anterior'){const m=new Date(y,d.getMonth()-1,1).toISOString().slice(0,7);return{desde:m+'-01',hasta:m+'-31',label:'mes pasado'};}
+  if(gastoPeriodo==='anio')return{desde:y+'-01-01',hasta:y+'-12-31',label:''+y};
+  if(gastoPeriodo==='rango')return{desde:$('x-desde').value||'0000-01-01',hasta:$('x-hasta').value||'9999-12-31',label:'rango'};
+  return{desde:'0000-01-01',hasta:'9999-12-31',label:'todo'};
+}
+function mesCorto(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'short'})+(gastoPeriodo==='todo'?" '"+String(y).slice(2):'');}
+function renderGastos(){
+  $('x-periodo').innerHTML=PERIODOS.map(([k,l])=>`<span class="chip${k===gastoPeriodo?' on':''}" onclick="setGastoPeriodo('${k}')">${l}</span>`).join('');
+  const {desde,hasta,label}=rangoPeriodo();
+  const list=EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=desde&&d<=hasta;})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  const total=list.reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const porCat={};list.forEach(e=>{const c=e.category||'Otro';porCat[c]=(porCat[c]||0)+(Number(e.amount)||0);});
+  const desglose=Object.entries(porCat).sort((a,b)=>b[1]-a[1])
+    .map(([c,m])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:14px"><span>${esc(c)}</span><b>${moneda(m)}</b></div>`).join('');
+  const porMes={};list.forEach(e=>{const m=(e.date||'').slice(0,7);if(m)porMes[m]=(porMes[m]||0)+(Number(e.amount)||0);});
+  const meses=Object.keys(porMes).sort();
+  let barras='';
+  if(meses.length>1){const max=Math.max(...meses.map(m=>porMes[m]));
+    barras='<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por mes</div>'+
+      meses.map(m=>`<div class="bar-row"><span class="bar-label">${mesCorto(m)}</span><span class="bar-track"><span class="bar-fill" style="width:${max?Math.round(porMes[m]/max*100):0}%"></span></span><span class="bar-val">${moneda(porMes[m])}</span></div>`).join('')+'</div>';
+  }
+  $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:24px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${list.length} gasto${list.length!==1?'s':''}</div>${desglose?`<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:8px">${desglose}</div>`:''}${barras}`;
+  const cont=$('gastoLista');
+  if(!list.length){cont.innerHTML='<p class="p-vacio">Sin gastos en este periodo.</p>';return;}
+  cont.innerHTML=list.map(e=>`<div class="entrada"><div class="top"><span class="fecha">${moneda(e.amount)}</span><span class="badge">${esc(e.category||'Otro')}</span></div>
+    <div class="pi-meta">${fechaCorta(e.date)}</div>${e.description?`<div class="cuerpo">${esc(e.description)}</div>`:''}
+    <div class="acc">${e.receiptPhotoId?`<button class="mini" onclick="openSheet('${e.receiptPhotoId}')">Ver boleta</button>`:''}<button class="mini del" onclick="eliminarGasto('${e.id}')">Eliminar</button></div></div>`).join('');
+}
+function eliminarGasto(id){if(!confirm('¿Eliminar este gasto?'))return;EmmaStore.deleteExpense(id);renderGastos();toast('Gasto eliminado');}
 
 /* ===== Ideas ===== */
 let idsel={lugar:'',tiempo:'10',estado:'',objetivo:''};
@@ -701,16 +823,25 @@ function renderPerfil(){rebuildProfile();
 function setTab(t){perfTab=t;renderPerfil();}
 
 /* ===== Actualizar perfil ===== */
-function actualizarPerfil(btnId){const b=btnId?$(btnId):null;const orig=b?b.innerHTML:'';
-  EmmaAI.updateEmmaProfile(msg=>{if(b)b.innerHTML=msg;}).then(()=>{
-    rebuildProfile();refrescarVista();
-    const lu=EmmaStore.getMeta().lastProfileUpdate;
-    setTimeout(()=>{if(b)b.innerHTML=orig;},1800);
-    toast('Perfil actualizado ✓');});}
+function actualizarPerfil(btnId){
+  const b=btnId?$(btnId):null;
+  if(b){ if(!b.dataset.orig)b.dataset.orig=b.innerHTML; b.disabled=true; }
+  const restore=()=>{ if(b){ b.innerHTML=b.dataset.orig; b.disabled=false; } };
+  const fallback=setTimeout(restore,20000); // por si algo se cuelga, el botón siempre vuelve
+  EmmaAI.updateEmmaProfile(msg=>{ if(b)b.textContent=msg; })
+    .then(res=>{
+      rebuildProfile(); refrescarVista();
+      if(res&&res.error)toast('Error al actualizar, intenta de nuevo');
+      else if(res&&res.blocked)toast('Límite de gasto alcanzado');
+      else toast('Perfil actualizado ✓');
+    })
+    .catch(()=>toast('Error al actualizar, intenta de nuevo'))
+    .finally(()=>{ clearTimeout(fallback); setTimeout(restore,1200); });
+}
 
 /* ===== Ajustes / backup ===== */
 function descargar(c,n,t){const b=new Blob([c],{type:t});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
-function backupCompleto(){return{app:'Emma & Papá',version:3,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),exportadoEl:new Date().toISOString()};}
+function backupCompleto(){return{app:'Emma & Papá',version:4,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),exportadoEl:new Date().toISOString()};}
 function exportarBackup(){descargar(JSON.stringify(backupCompleto(),null,2),'emma-backup-'+hoyISO()+'.json','application/json');EmmaStore.setMeta({lastBackup:new Date().toISOString()});renderAjustes();toast('Backup exportado 📁');}
 function exportarMarkdown(){descargar(EmmaNotes.exportMarkdown()+'\n'+resumenPerfilTexto(),'emma-'+hoyISO()+'.md','text/markdown');toast('Markdown descargado');}
 function exportarCSV(){const cols=['date','mood','activities','liked','foods','food_result','new_words','note'];const esc2=v=>{v=Array.isArray(v)?v.join('; '):(v||'');return '"'+String(v).replace(/"/g,'""')+'"';};
@@ -725,13 +856,13 @@ function copiarNotasClaude(){copiar(EmmaNotes.copyForClaude(),'Notas copiadas �
 function copiarResumenDia(){const hoy=hoyISO();const d=EmmaStore.getEntries().filter(e=>e.date===hoy);if(!d.length){toast('No hay registros de hoy');return;}
   let t='Emma · '+fechaLarga(hoy)+'\n';d.forEach(e=>{const p=[];if(e.mood)p.push('Estado: '+e.mood);if((e.activities||[]).length)p.push('Hicimos: '+e.activities.join(', '));if((e.liked||[]).length)p.push('Le gustó: '+e.liked.join(', '));if((e.foods||[]).length)p.push('Comida: '+e.foods.join(', ')+(e.food_result?' ('+e.food_result+')':''));if((e.newWords||[]).length)p.push('Palabra: '+e.newWords.join(', '));if(e.note)p.push('Nota: '+e.note);t+='• '+p.join(' · ')+'\n';});copiar(t,'Resumen del día copiado 📋');}
 function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;
-  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);
+  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
 function renderAjustes(){const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
-    sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
+    sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}
   else sb.innerHTML='';
   const ab=$('aiBox');
@@ -782,6 +913,7 @@ function renderInicio(){
   $('emmaNombre').textContent=EmmaStore.EMMA.nombre;
   $('emmaMeta').textContent=EmmaStore.edadEmma()+' · '+fechaLarga(hoyISO()).replace(/^\w/,c=>c.toUpperCase());
   $('statRacha').textContent=EmmaStore.racha();$('statTotal').textContent=EmmaStore.getEntries().length;
+  const gm=gastoMes();const gh=$('gastoMesHint');if(gh)gh.textContent=gm>0?('este mes '+moneda(gm)):'';
   const lu=EmmaStore.getMeta().lastProfileUpdate;
   $('statUpd').textContent=lu?new Date(lu).toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'Nunca';
   $('updLine').textContent=lu?('Última actualización: '+new Date(lu).toLocaleString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Toca para organizar la info de Emma';
@@ -807,6 +939,12 @@ window.addEventListener('online',actualizarEstado);window.addEventListener('offl
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
   $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
+function abrirCambioPwd(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}$('pwdNew').value='';$('pwdNew2').value='';$('pwdError').textContent='';$('pwdOverlay').classList.add('show');}
+function hacerCambioPwd(){const p1=$('pwdNew').value,p2=$('pwdNew2').value,err=$('pwdError');err.textContent='';
+  if(p1.length<6){err.textContent='Mínimo 6 caracteres.';return;}
+  if(p1!==p2){err.textContent='Las contraseñas no coinciden.';return;}
+  $('pwdBtn').disabled=true;$('pwdBtn').textContent='Guardando…';
+  EmmaSync.changePassword(p1).then(()=>{$('pwdOverlay').classList.remove('show');toast('Contraseña actualizada ✓');}).catch(e=>err.textContent=e.message||'No se pudo cambiar.').finally(()=>{$('pwdBtn').disabled=false;$('pwdBtn').textContent='Guardar contraseña';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
 window.onEmmaSynced=refrescarVista;
