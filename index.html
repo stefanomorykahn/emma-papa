@@ -1003,7 +1003,7 @@ function renderAjustes(){renderCategorias();if($('temaLabel')){const t=localStor
   const db=$('driveBox');
   if(window.EmmaPhotos){const st=EmmaPhotos.status();
     if(st.estado==='no-config')db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}<br>Modo enlace (pega links). Para subir desde la app, configura tu Client ID (ver PHOTOS.md).</div></div>`;
-    else if(st.estado==='conectado')db.innerHTML=`<div class="sync-box"><div><b>Google Drive conectado</b></div><div class="cuenta">Cuenta: ${esc(st.email||'—')}<br>Carpeta: ${esc(st.folder||'')}</div><button class="mini del" onclick="desconectarDrive()">Desconectar</button></div>`;
+    else if(st.estado==='conectado')db.innerHTML=`<div class="sync-box"><div><b>Google Drive conectado</b></div><div class="cuenta">Cuenta: ${esc(st.email||'—')}<br>Carpeta: ${esc(st.folder||'')}<br>Se separan en subcarpetas: <b>Fotos de Emma</b> y <b>Boletas y pagos</b>.</div><div class="fila-btns"><button class="mini" onclick="organizarFotosDrive()">🗂️ Organizar fotos</button><button class="mini del" onclick="desconectarDrive()">Desconectar</button></div></div>`;
     else db.innerHTML=`<div class="sync-box"><div><b>Google Drive</b></div><div class="cuenta">Carpeta: ${esc(SUPABASE_CONFIG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH||'')}</div><button class="mini" onclick="conectarDrive()">Conectar Google Drive</button></div>`;
   }else db.innerHTML='';
   $('ultimoBackup').innerHTML=lb?'📁 Último backup: <b>'+fechaCorta(lb.slice(0,10))+'</b>':'📁 Aún no has hecho backup.';
@@ -1030,6 +1030,13 @@ function analisisSemanal(){
 /* ===== Google Drive ===== */
 function conectarDrive(){toast('Abriendo Google…');EmmaPhotos.connect().then(()=>{renderAjustes();toast('Google Drive conectado ✓');}).catch(e=>toast('No se pudo conectar: '+(e.message||'')));}
 function desconectarDrive(){EmmaPhotos.disconnect();renderAjustes();toast('Google Drive desconectado');}
+function organizarFotosDrive(){
+  if(!(window.EmmaPhotos&&EmmaPhotos.organizarDrive))return;
+  toast('Organizando fotos en Drive…');
+  EmmaPhotos.organizarDrive((i,n)=>{if(i===n||i%5===0)toast('Organizando… '+i+'/'+n);})
+    .then(m=>toast(m?('Listo · '+m+' movida'+(m>1?'s':'')+' a su subcarpeta ✓'):'Ya estaban organizadas ✓'))
+    .catch(e=>toast('No se pudo: '+(e.message||'')));
+}
 
 /* ===== Inicio ===== */
 function estadoCorto(it){if(!it)return'';if(it.pos>0&&it.neg===0)return'le gusta';if(it.neg>0&&it.pos===0)return'no le gusta';return'neutral';}

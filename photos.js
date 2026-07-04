@@ -119,9 +119,46 @@ const EmmaPhotos = (function () {
   }
 
   /* ---------- Subir a Drive (multipart) ---------- */
-  async function driveUpload(blob, fileName) {
+  /* ---------- Subcarpetas por categoría (Fotos de Emma / Boletas y pagos) ---------- */
+  const _subCache = {};
+  function _esBoletaMeta(meta) { return ((meta && meta.tags) || []).some(t => /boleta|gasto|pago/i.test(String(t))); }
+  function subfolderPara(meta) { return _esBoletaMeta(meta) ? 'Boletas y pagos' : 'Fotos de Emma'; }
+  async function ensureSubfolder(nombre) {
     await ensureToken();
-    const metadata = { name: fileName, parents: [FOLDER_ID], mimeType: 'image/jpeg' };
+    if (_subCache[nombre]) return _subCache[nombre];
+    const q = encodeURIComponent(`name='${nombre}' and '${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)&spaces=drive', { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) { const d = await r.json(); if (d.files && d.files[0]) { _subCache[nombre] = d.files[0].id; return d.files[0].id; } }
+    const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] }) });
+    if (!cr.ok) throw new Error('No se pudo crear la subcarpeta');
+    const cd = await cr.json(); _subCache[nombre] = cd.id; return cd.id;
+  }
+  // Reorganiza las fotos YA subidas: mueve cada una a su subcarpeta según su categoría.
+  async function organizarDrive(onProgress) {
+    onProgress = onProgress || function () {};
+    await ensureToken();
+    const emmaSub = await ensureSubfolder('Fotos de Emma');
+    const boletaSub = await ensureSubfolder('Boletas y pagos');
+    const fotos = (EmmaStore.getPhotos() || []).filter(p => p.driveFileId && !p.deleted);
+    let movidas = 0;
+    for (let i = 0; i < fotos.length; i++) {
+      const p = fotos[i]; onProgress(i + 1, fotos.length);
+      const destino = _esBoletaMeta(p) ? boletaSub : emmaSub;
+      if (p.driveFolderId === destino) continue;
+      try {
+        const g = await fetch('https://www.googleapis.com/drive/v3/files/' + p.driveFileId + '?fields=parents', { headers: { Authorization: 'Bearer ' + token } });
+        if (!g.ok) continue;
+        const gd = await g.json(); const viejos = (gd.parents || []).filter(x => x !== destino).join(',');
+        const u = await fetch('https://www.googleapis.com/drive/v3/files/' + p.driveFileId + '?addParents=' + destino + (viejos ? '&removeParents=' + viejos : '') + '&fields=id', { method: 'PATCH', headers: { Authorization: 'Bearer ' + token } });
+        if (u.ok) { EmmaStore.updatePhoto(p.id, { driveFolderId: destino }); movidas++; }
+      } catch (e) {}
+    }
+    return movidas;
+  }
+
+  async function driveUpload(blob, fileName, parentId) {
+    await ensureToken();
+    const metadata = { name: fileName, parents: [parentId || FOLDER_ID], mimeType: 'image/jpeg' };
     const boundary = 'emma_' + Math.random().toString(36).slice(2);
     const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`;
     const tail = `\r\n--${boundary}--`;
@@ -148,13 +185,15 @@ const EmmaPhotos = (function () {
   function _qDel(id) { return _idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction('queue', 'readwrite'); tx.objectStore('queue').delete(id); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
 
   async function _uploadAndSave(blob, fileName, meta, width, height) {
-    const up = await driveUpload(blob, fileName);
+    let parent = FOLDER_ID;
+    try { parent = await ensureSubfolder(subfolderPara(meta)); } catch (e) {} // si falla, va a la carpeta raíz
+    const up = await driveUpload(blob, fileName, parent);
     const driveUrl = up.webViewLink || ('https://drive.google.com/file/d/' + up.id + '/view');
     return EmmaStore.savePhoto({
       entryId: meta.entryId || null, activityId: meta.activityId || null,
       date: meta.date || new Date().toISOString().slice(0, 10),
       title: meta.title || '', description: meta.description || '', tags: meta.tags || [],
-      storageProvider: 'google_drive', driveFolderId: FOLDER_ID, driveFileId: up.id, driveUrl,
+      storageProvider: 'google_drive', driveFolderId: parent, driveFileId: up.id, driveUrl,
       mimeType: 'image/jpeg', fileName, fileSize: blob.size, width, height, isFavorite: !!meta.isFavorite
     });
   }
@@ -265,6 +304,6 @@ const EmmaPhotos = (function () {
   }
 
   return { FOLDER_ID, driveEnabled, isConnected, account, status, connect, disconnect,
-    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken };
+    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken, organizarDrive, ensureSubfolder };
 })();
 if (typeof window !== 'undefined') window.EmmaPhotos = EmmaPhotos;
