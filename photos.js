@@ -249,6 +249,13 @@ const EmmaPhotos = (function () {
     window.addEventListener('online', () => flushQueue());
     setTimeout(() => flushQueue(), 4000);
     setInterval(() => flushQueue(), 3 * 60 * 1000);
+    // Al abrir la app, si ya conectaste Drive antes, renueva el acceso EN SILENCIO (sin popup)
+    // para no tener que reconectar en cada ingreso.
+    if (consented) setTimeout(() => { ensureToken().catch(() => {}); }, 1500);
+    // Y también al volver a la app (reabrir/cambiar de pestaña).
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && consented && !isConnected()) ensureToken().catch(() => {});
+    });
   }
 
   /* ---------- Backup a Drive (JSON) ---------- */
