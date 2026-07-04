@@ -183,8 +183,8 @@
   .nav button .ni{line-height:1;} .nav .ic{width:21px;height:21px;} .nav button.on{color:var(--acento);}
   .nav button.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:0 0 4px 4px;background:var(--acento);}
 
-  .toast{position:fixed;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translateX(-50%) translateY(140%);background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;z-index:100;box-shadow:0 6px 20px rgba(0,0,0,.15);transition:transform .3s cubic-bezier(.2,.8,.2,1);max-width:88%;text-align:center;}
-  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast{position:fixed;left:50%;bottom:calc(88px + var(--safe-bottom));transform:translateX(-50%) translateY(16px);opacity:0;visibility:hidden;pointer-events:none;background:var(--ok);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:15px;z-index:100;box-shadow:0 6px 20px rgba(0,0,0,.15);transition:opacity .3s, transform .3s, visibility .3s;max-width:88%;text-align:center;}
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
 
   .login-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--crema);padding:24px;overflow:auto;}
   .login-overlay.show{display:grid;place-items:center;}
@@ -397,7 +397,7 @@
   <button data-vista="inicio" class="on" onclick="ir('inicio')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>Inicio</button>
   <button data-vista="rapido" onclick="ir('rapido')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>Registrar</button>
   <button data-vista="perfil" onclick="ir('perfil')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>Perfil</button>
-  <button data-vista="ideas" onclick="ir('ideas')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.8 10.7c.6.5.8 1 .8 1.8v.4h6v-.4c0-.8.2-1.3.8-1.8A6 6 0 0 0 12 3z"/></svg></span>Ideas</button>
+  <button data-vista="gastos" onclick="ir('gastos')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1"/></svg></span>Gastos</button>
   <button data-vista="ajustes" onclick="ir('ajustes')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="7" cy="17" r="2"/></svg></span>Ajustes</button>
 </nav>
 
@@ -964,11 +964,11 @@ function hacerCambioPwd(){const p1=$('pwdNew').value,p2=$('pwdNew2').value,err=$
   EmmaSync.changePassword(p1).then(()=>{$('pwdOverlay').classList.remove('show');toast('Contraseña actualizada ✓');}).catch(e=>err.textContent=e.message||'No se pudo cambiar.').finally(()=>{$('pwdBtn').disabled=false;$('pwdBtn').textContent='Guardar contraseña';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();}
-window.onEmmaSynced=refrescarVista;
+window.onEmmaSynced=function(){if(window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();refrescarVista();};
 
 /* ===== Init ===== */
 function init(){
-  if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();
+  if(window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
   $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
   refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
   ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));

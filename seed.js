@@ -44,6 +44,18 @@ const EmmaSeed = (function () {
 
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
 
+  // UUID DETERMINISTA (formato v5) desde (categoría, nombre): el MISMO id en todos
+  // los dispositivos, así el sync colapsa los duplicados en vez de multiplicarlos.
+  // (La columna id en Supabase es uuid, por eso no basta un string tipo 'seed_...'.)
+  function seedUuid(cat, name) {
+    const str = 'emma-seed:' + norm(cat) + ':' + norm(name);
+    const h = seed => { let x = seed >>> 0; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 16777619) >>> 0; } return x >>> 0; };
+    const hx = n => ('00000000' + (n >>> 0).toString(16)).slice(-8);
+    const r = hx(h(0x811c9dc5)) + hx(h(0x9e3779b1)) + hx(h(0x85ebca77)) + hx(h(0xc2b2ae3d));
+    const y = ((parseInt(r[16], 16) & 0x3) | 0x8).toString(16);
+    return r.slice(0, 8) + '-' + r.slice(8, 12) + '-5' + r.slice(13, 16) + '-' + y + r.slice(17, 20) + '-' + r.slice(20, 32);
+  }
+
   // Idempotente: agrega solo los items del seed que aún no existen.
   // Así se pueden añadir gustos nuevos al SEED sin duplicar los previos.
   function loadSeedIfNeeded() {
@@ -56,7 +68,7 @@ const EmmaSeed = (function () {
     SEED.forEach(s => {
       const k = norm(s.cat) + '|' + norm(s.name);
       if (set.has(k)) return;
-      EmmaStore.saveProfileItem({ category: s.cat, name: s.name, sentiment: s.sent || 'neu',
+      EmmaStore.saveProfileItem({ id: seedUuid(s.cat, s.name), category: s.cat, name: s.name, sentiment: s.sent || 'neu',
         source: 'inicial', notes: s.ev || '', date: hoy });
       set.add(k); agregados++;
     });
@@ -65,6 +77,42 @@ const EmmaSeed = (function () {
     return agregados > 0;
   }
 
-  return { SEED, loadSeedIfNeeded };
+  // Colapsa los items 'inicial' duplicados a UNO por (categoría, nombre), con id
+  // determinista. Idempotente: si ya está limpio no toca nada (evita churn de sync).
+  // Los borrados se propagan por tombstones. Devuelve true si cambió algo.
+  function dedupeInitialItems() {
+    let items;
+    try { items = EmmaStore.getProfileItems(); } catch (e) { return false; }
+    const iniciales = items.filter(i => i.source === 'inicial');
+    if (!iniciales.length) return false;
+    const groups = {};
+    iniciales.forEach(i => { const k = norm(i.category) + '|' + norm(i.name); (groups[k] = groups[k] || []).push(i); });
+    // ¿ya está limpio? (1 por grupo y cada uno con su id determinista)
+    const limpio = Object.values(groups).every(g => g.length === 1 && g[0].id === seedUuid(g[0].category, g[0].name));
+    if (limpio) return false;
+    const nonInicial = items.filter(i => i.source !== 'inicial');
+    const kept = [], removedIds = [], now = new Date().toISOString();
+    Object.values(groups).forEach(group => {
+      const detId = seedUuid(group[0].category, group[0].name);
+      const rep = Object.assign({}, group[0], { id: detId, source: 'inicial', updatedAt: now });
+      group.forEach(g => {
+        if (g.createdAt && (!rep.createdAt || g.createdAt < rep.createdAt)) rep.createdAt = g.createdAt;
+        if ((rep.sentiment === 'neu' || !rep.sentiment) && g.sentiment && g.sentiment !== 'neu') rep.sentiment = g.sentiment;
+        if (!rep.notes && g.notes) rep.notes = g.notes;
+      });
+      kept.push(rep);
+      group.forEach(g => { if (g.id !== detId) removedIds.push(g.id); });
+    });
+    EmmaStore._setProfileItemsRaw(nonInicial.concat(kept));
+    const tomb = EmmaStore.getPiTombstones();
+    removedIds.forEach(id => { tomb[id] = now; });
+    kept.forEach(k => { if (tomb[k.id]) delete tomb[k.id]; });
+    EmmaStore.setPiTombstones(tomb);
+    if (window.EmmaProfile) EmmaProfile.rebuildProfileFromEntries();
+    if (window.EmmaSync && EmmaSync.onLocalChange) EmmaSync.onLocalChange(); // propaga tombstones
+    return true;
+  }
+
+  return { SEED, loadSeedIfNeeded, dedupeInitialItems, seedUuid };
 })();
 if (typeof window !== 'undefined') window.EmmaSeed = EmmaSeed;
