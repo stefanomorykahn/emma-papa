@@ -23,6 +23,7 @@
     configured: CONFIGURED,
     state: 'local',
     onStateChange: null,
+    onSessionExpired: null,
     isConfigured() { return CONFIGURED; },
     isSignedIn() { return !!(session && session.access_token); },
     currentEmail() { return session ? session.email : ''; },
@@ -125,7 +126,12 @@
         if (typeof window.onEmmaSynced === 'function') window.onEmmaSynced();
       } catch (err) {
         console.warn('[EmmaSync]', err && err.message);
-        _setState(navigator.onLine ? 'error' : 'offline');
+        if ((err && err.sessionExpired) || !EmmaSync.isSignedIn()) {
+          _setState('signed-out'); // no es un error de red: la sesión caducó
+          if (typeof EmmaSync.onSessionExpired === 'function') EmmaSync.onSessionExpired();
+        } else {
+          _setState(navigator.onLine ? 'error' : 'offline');
+        }
       } finally { busy = false; }
     },
 
@@ -160,11 +166,11 @@
     return r;
   }
   async function _refresh() {
-    if (!session || !session.refresh_token) throw new Error('Sesión expirada');
+    if (!session || !session.refresh_token) { EmmaSync.signOut(); const e = new Error('Sesión expirada'); e.sessionExpired = true; throw e; }
     const r = await fetch(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
       method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: session.refresh_token }) });
-    if (!r.ok) { EmmaSync.signOut(); throw new Error('Sesión expirada'); }
+    if (!r.ok) { EmmaSync.signOut(); const e = new Error('Sesión expirada'); e.sessionExpired = true; throw e; }
     const d = await r.json();
     session.access_token = d.access_token;
     session.refresh_token = d.refresh_token || session.refresh_token;

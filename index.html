@@ -295,19 +295,8 @@
   <!-- ===== GASTOS ===== -->
   <section class="vista" id="v-gastos">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Gastos de Emma</h2></div>
-    <div id="gastoEditor">
-      <div class="fecha-linea"><span>Fecha:</span><input type="date" id="x-date" /></div>
-      <div class="campo"><label>Monto (S/)</label><input type="text" id="x-monto" inputmode="decimal" placeholder="Ej. 25.50" /></div>
-      <div class="campo"><label>Categoría</label><div class="chips" id="x-cat"></div></div>
-      <div class="campo"><label>Descripción <span class="op">(opcional)</span></label><input type="text" id="x-desc" placeholder="Ej. pañales, ropa, juguete" /></div>
-      <div class="campo"><label>Constancia / boleta <span class="op">(opcional)</span></label>
-        <div class="foto-chips" id="x-foto"></div>
-        <button type="button" class="mini" onclick="pickGastoFoto()">＋ Foto de la boleta</button>
-        <input type="file" id="x-foto-input" accept="image/*" style="display:none" onchange="onGastoFotoPick(event)" />
-      </div>
-      <button class="guardar" id="x-guardar" onclick="guardarGasto()">Guardar gasto</button>
-    </div>
-    <div class="chips scroll" id="x-periodo" style="margin-top:16px;margin-bottom:10px"></div>
+    <p class="pi-meta" style="text-align:center;margin:2px 0 6px">Los gastos se registran al guardar un momento (monto + boleta).</p>
+    <div class="chips scroll" id="x-periodo" style="margin-top:6px;margin-bottom:10px"></div>
     <div id="x-rango"><input type="date" id="x-desde" onchange="renderGastos()" /><input type="date" id="x-hasta" onchange="renderGastos()" /></div>
     <div class="p-bloque" id="gastoResumen"></div>
     <div id="gastoLista"></div>
@@ -539,11 +528,7 @@ let gastoSel={cat:''}; let gastoFoto=null; // {file?,url?,previewUrl}
 function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
 function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
 function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses().filter(e=>(e.date||'').slice(0,7)===mes).reduce((s,e)=>s+(Number(e.amount)||0),0);}
-function initGastos(){
-  if(!$('x-date').value)$('x-date').value=hoyISO();
-  chipsSingle('x-cat',GASTO_CATS,'cat',gastoSel);
-  renderGastoFotoPrev();renderGastos();
-}
+function initGastos(){ renderGastos(); } // la vista Gastos es solo lectura/analítica; el registro está en "Registrar momento"
 function pickGastoFoto(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$('x-foto-input').click();}
   else{const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){gastoFoto={url:u.trim(),previewUrl:''};renderGastoFotoPrev();}}
@@ -957,6 +942,8 @@ window.addEventListener('online',actualizarEstado);window.addEventListener('offl
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
   $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
+// La sesión caducó durante el sync (no es error de red): avisa y abre el login.
+function avisarSesionExpirada(){$('loginError').textContent='Tu sesión expiró, vuelve a iniciar sesión.';$('loginOverlay').classList.add('show');toast('Tu sesión expiró');renderAjustes();}
 function abrirCambioPwd(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}$('pwdNew').value='';$('pwdNew2').value='';$('pwdError').textContent='';$('pwdOverlay').classList.add('show');}
 // Si el usuario llegó desde el enlace de recuperación del email (#...type=recovery&access_token=...),
 // guarda esa sesión temporal y abre "Cambiar contraseña" para definir una nueva.
@@ -999,7 +986,7 @@ function init(){
   ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));
   $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
   rebuildProfile();
-  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
+  if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;EmmaSync.onSessionExpired=avisarSesionExpirada;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn())$('loginOverlay').classList.add('show');}
   actualizarEstado();renderInicio();
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 }
