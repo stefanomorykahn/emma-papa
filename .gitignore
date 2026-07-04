@@ -39,6 +39,7 @@
 !/README.md
 !/supabase-schema.sql
 !/ai-schema.sql
+!/photos-schema.sql
 
 # Edge Function de IA (no expone secretos; las claves van como secrets en Supabase)
 !/supabase
