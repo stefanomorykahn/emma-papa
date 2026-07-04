@@ -940,7 +940,7 @@ function eliminar(id){if(!confirm('¿Eliminar este registro?'))return;EmmaStore.
 
 /* ===== Perfil ===== */
 let perfTab='resumen';let decVer=false;
-const TABS=[['resumen','Resumen'],['hitos','Hitos'],['tendencias','Tendencias'],['alimentacion','Alimentación'],['actividades','Actividades'],['canciones','Canciones'],['animales','Animales'],['lenguaje','Lenguaje'],['emociones','Emociones'],['lugares','Lugares'],['sobre','Sobre Emma'],['recuerdos','Recuerdos']];
+const TABS=[['resumen','Resumen'],['hitos','Hitos'],['tendencias','Tendencias'],['alimentacion','Alimentación'],['actividades','Actividades'],['sobre','Sobre Emma']];
 function renderPerfil(){rebuildProfile();
   const dec=EmmaAI.practicalDecisions();
   if(perfTab==='resumen'&&dec.length){const vis=decVer?dec:dec.slice(0,2);

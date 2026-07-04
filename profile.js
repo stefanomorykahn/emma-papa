@@ -283,7 +283,6 @@ const EmmaProfile = (function () {
     const D = data();
     const foods = Object.values(D.categories.foods);
     const acts = Object.values(D.categories.activities);
-    const places = Object.values(D.categories.places);
     switch (tab) {
       case 'alimentacion': {
         const frutas = foods.filter(isFruit);
@@ -302,36 +301,15 @@ const EmmaProfile = (function () {
           seccion('Que la calman', getTopItems('calming', 20)) +
           seccion('Que la frustran', Object.values(D.categories.frustrations)) +
           seccion('Nuevas (una vez)', acts.filter(a => a.count === 1))) || vacio();
-      case 'lenguaje':
-        return seccion('Palabras y frases', getRecentItems('language', 40)) || vacio();
-      case 'emociones': {
-        const feliz = [...acts, ...places].filter(x => moodTop(x) === 'Feliz');
-        const cansada = [...acts, ...places].filter(x => ['Cansada','Sensible','Irritable'].includes(moodTop(x)));
-        return (seccion('La calman', getTopItems('calming', 20)) +
-          seccion('La frustran', Object.values(D.categories.frustrations)) +
-          seccion('Suele estar feliz con', feliz) +
-          seccion('Suele estar cansada o sensible con', cansada)) || vacio();
-      }
-      case 'lugares':
-        return (seccion('Favoritos', getTopItems('places', 10).filter(p => p.count > 0)) +
-          seccion('Para repetir', places.filter(esPos)) +
-          seccion('Se frustró', places.filter(esNeg))) || vacio();
-      case 'canciones':
-        return seccion('Canciones que le gustan', Object.values(D.categories.songs)) || vacio('Aún sin canciones registradas.');
-      case 'animales': {
+      case 'sobre': {
         const an = Object.values(D.categories.animals);
-        return (seccion('Le gustan', an.filter(x => !esNeg(x))) +
-          seccion('No le gustan', an.filter(esNeg))) || vacio('Aún sin animales registrados.');
-      }
-      case 'sobre':
         return (seccion('Personalidad', Object.values(D.categories.personality)) +
+          seccion('Canciones que le gustan', Object.values(D.categories.songs)) +
+          seccion('Animales que le gustan', an.filter(x => !esNeg(x))) +
+          seccion('Animales que no le gustan', an.filter(esNeg)) +
           seccion('Rutinas y cuidados', Object.values(D.categories.routines)) +
           seccion('Ideas futuras', Object.values(D.categories.ideas))) || vacio('Aún sin datos.');
-      case 'recuerdos':
-        return D.memories.length ? D.memories.map(m => `<div class="p-item">
-          <div class="pi-top"><span class="estado e-neu">${m.kind}</span><span class="pi-meta">${fechaCorta(m.date)}</span></div>
-          <div class="pi-nota" style="font-style:normal">${esc(m.text)}</div></div>`).join('')
-          : vacio('Aún sin recuerdos. Marca notas como importantes o registra primeras veces.');
+      }
       case 'resumen':
       default: {
         const chips = arr => arr.length ? `<div class="tags">${arr.map(x => `<span class="tag">${esc(x.label)}<span class="x">${x.count}</span></span>`).join('')}</div>` : vacio();
@@ -339,8 +317,7 @@ const EmmaProfile = (function () {
             <div class="pi-meta">Nació 17/07/2024 · <b>${EmmaStore.edadEmma()}</b> · Estado frecuente: <b>${EmmaStore.emocionFrecuente() || '—'}</b></div></div>
           <div class="p-bloque"><h3>Actividades top</h3>${chips(getTopItems('activities', 5).filter(a => a.count > 0))}</div>
           <div class="p-bloque"><h3>Le gustan</h3>${chips(getTopItems('foods', 5).filter(esPos))}</div>
-          <div class="p-bloque"><h3>Palabras recientes</h3>${(getRecentItems('language', 5).length ? `<div class="tags">${getRecentItems('language', 5).map(w => `<span class="tag">${esc(w.label)}</span>`).join('')}</div>` : vacio())}</div>
-          <div class="p-bloque"><h3>Personas</h3>${chips(getTopItems('people', 5))}</div>`;
+          <div class="p-bloque"><h3>Palabras recientes</h3>${(getRecentItems('language', 5).length ? `<div class="tags">${getRecentItems('language', 5).map(w => `<span class="tag">${esc(w.label)}</span>`).join('')}</div>` : vacio())}</div>`;
       }
     }
   }
