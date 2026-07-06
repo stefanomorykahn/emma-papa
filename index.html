@@ -602,7 +602,7 @@ let gastoSel={cat:''}; let gastoFoto=null; // {file?,url?,previewUrl}
 function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
 function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
 function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses().filter(e=>(e.date||'').slice(0,7)===mes).reduce((s,e)=>s+(Number(e.amount)||0),0);}
-function initGastos(){ const n=dedupGastos(); renderGastos(); if(n)toast('Se unieron '+n+' gasto'+(n>1?'s':'')+' duplicado'+(n>1?'s':'')); } // limpia duplicados al abrir; el registro está en "Registrar momento"
+function initGastos(){ const n=dedupGastos(); renderGastos(); if(n)toast((n>1?'Se unieron ':'Se unió ')+n+' gasto'+(n>1?'s':'')+' duplicado'+(n>1?'s':'')); } // limpia duplicados al abrir; el registro está en "Registrar momento"
 
 /* ===== To Do · Salidas en Lima (checklist) ===== */
 let todoFiltro='todas';
