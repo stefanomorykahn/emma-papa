@@ -296,6 +296,42 @@ const EmmaProfile = (function () {
   const esPos = it => it.pos > 0 && it.neg === 0;
   const esNeg = it => it.neg > 0 && it.pos === 0;
 
+  // Highlights de Emma (bullets con emoji) derivados del Perfil Vivo. Se recalcula en cada rebuild.
+  function getHighlights() {
+    const D = data();
+    const foods = Object.values(D.categories.foods);
+    const uniq = a => [...new Set(a.filter(Boolean))];
+    const names = arr => uniq(arr.map(x => x.label));
+    const lines = [];
+    const add = (emoji, label, items) => { items = items.slice(0, 5); if (items.length) lines.push({ emoji, label, text: items.join(', ') }); };
+    add('🍓', 'Frutas favoritas', names(foods.filter(f => isFruit(f) && esPos(f))));
+    add('🍽️', 'Comidas favoritas', names(foods.filter(f => !isFruit(f) && esPos(f))));
+    add('🚫', 'No le gustan', names(foods.filter(esNeg)));
+    add('🎨', 'Actividades favoritas', names(getTopItems('activities', 6).filter(a => a.count > 0 && !esNeg(a))));
+    add('🎵', 'Canciones favoritas', names(Object.values(D.categories.songs)));
+    const an = Object.values(D.categories.animals);
+    const anLike = names(an.filter(x => !esNeg(x))), anAvoid = names(an.filter(esNeg));
+    if (anLike.length || anAvoid.length) {
+      let t = '';
+      if (anLike.length) t += 'le gustan ' + anLike.slice(0, 4).join(', ');
+      if (anAvoid.length) t += (t ? '; ' : '') + 'evita ' + anAvoid.slice(0, 3).join(', ');
+      lines.push({ emoji: '🐾', label: 'Animales', text: t });
+    }
+    add('🌿', 'La calma', names(getTopItems('calming', 20)));
+    add('⚡', 'La frustra', names(Object.values(D.categories.frustrations)));
+    add('🗣️', 'Palabras nuevas', names(getRecentItems('language', 8)));
+    add('📍', 'Lugares favoritos', names(Object.values(D.categories.places).filter(esPos)));
+    return lines;
+  }
+  // Panel HTML de highlights (para el Perfil Resumen y el reporte imprimible).
+  function highlightsHtml() {
+    const hl = getHighlights();
+    if (!hl.length) return '<div class="p-bloque"><h3>Highlights de Emma</h3><p class="p-vacio" style="margin-top:4px">Registra momentos y comidas para ver los highlights de Emma.</p></div>';
+    return '<div class="p-bloque"><h3>Highlights de Emma</h3>' +
+      hl.map(l => `<div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:14px;line-height:1.45"><span style="flex:0 0 auto">${l.emoji}</span><span><b>${esc(l.label)}:</b> ${esc(l.text)}</span></div>`).join('') +
+      '</div>';
+  }
+
   function renderTab(tab) {
     const D = data();
     const foods = Object.values(D.categories.foods);
@@ -330,7 +366,7 @@ const EmmaProfile = (function () {
       case 'resumen':
       default: {
         const chips = arr => arr.length ? `<div class="tags">${arr.map(x => `<span class="tag">${esc(x.label)}<span class="x">${x.count}</span></span>`).join('')}</div>` : vacio();
-        return `<div class="p-bloque"><h3>${esc(EmmaStore.EMMA.nombre)}</h3>
+        return highlightsHtml() + `<button class="btn-full" onclick="descargarReporte()" style="margin-bottom:10px"><span class="ico">📄</span> Descargar reporte (con fotos)</button>` + `<div class="p-bloque"><h3>${esc(EmmaStore.EMMA.nombre)}</h3>
             <div class="pi-meta">Nació 17/07/2024 · <b>${EmmaStore.edadEmma()}</b> · Estado frecuente: <b>${EmmaStore.emocionFrecuente() || '—'}</b></div></div>
           <div class="p-bloque"><h3>Actividades top</h3>${chips(getTopItems('activities', 5).filter(a => a.count > 0))}</div>
           <div class="p-bloque"><h3>Le gustan</h3>${chips(getTopItems('foods', 5).filter(esPos))}</div>
@@ -353,6 +389,7 @@ const EmmaProfile = (function () {
   }
 
   return { rebuildProfileFromEntries, data, getTopItems, getRecentItems, getSuggestedChips,
-    historyTokens, extractSuggestionsFromFreeText, addDetectedItemToProfile, renderTab, getPhotosForProfileItem, esTokenComida };
+    historyTokens, extractSuggestionsFromFreeText, addDetectedItemToProfile, renderTab, getPhotosForProfileItem, esTokenComida,
+    getHighlights, highlightsHtml };
 })();
 if (typeof window !== 'undefined') window.EmmaProfile = EmmaProfile;

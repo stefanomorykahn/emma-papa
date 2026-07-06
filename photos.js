@@ -391,7 +391,32 @@ const EmmaPhotos = (function () {
     } catch (e) { return ''; }
   }
 
+  // Devuelve la foto como dataURL base64 (para INCRUSTARLA en el reporte imprimible,
+  // así no depende de un token de Drive). '' si no se puede. Cachea por fileId.
+  const dataUrlCache = {};
+  async function getThumbDataURL(photo) {
+    const id = photo && photo.driveFileId;
+    if (!id) return '';
+    if (dataUrlCache[id]) return dataUrlCache[id];
+    if (!CLIENT_ID) return '';
+    try { await ensureToken(); } catch (e) { return ''; }
+    try {
+      const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+        { headers: { Authorization: 'Bearer ' + token } });
+      if (!r.ok) return '';
+      const blob = await r.blob();
+      const durl = await new Promise((res) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result || '');
+        fr.onerror = () => res('');
+        fr.readAsDataURL(blob);
+      });
+      if (durl) dataUrlCache[id] = durl;
+      return durl;
+    } catch (e) { return ''; }
+  }
+
   return { FOLDER_ID, driveEnabled, isConnected, account, status, connect, disconnect,
-    addFromFile, addFromLink, getThumb, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken, organizarDrive, ensureSubfolder, errMsg };
+    addFromFile, addFromLink, getThumb, getThumbDataURL, parseDriveId, flushQueue, queueCount, driveUploadText, ensureToken, organizarDrive, ensureSubfolder, errMsg };
 })();
 if (typeof window !== 'undefined') window.EmmaPhotos = EmmaPhotos;
