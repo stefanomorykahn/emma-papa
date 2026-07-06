@@ -73,7 +73,9 @@
   .punto{width:8px;height:8px;border-radius:50%;background:var(--ok);} .punto.offline{background:var(--dorado);}
 
   .vista{display:none;animation:ap .22s ease;} .vista.activa{display:block;}
-  @keyframes ap{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+  /* Solo opacidad (sin transform): un transform en la vista crearía un containing block
+     y rompería el position:fixed de la barra Guardar. */
+  @keyframes ap{from{opacity:0;}to{opacity:1;}}
 
   /* ---- Home ---- */
   .hola{margin:6px 2px 16px;}
