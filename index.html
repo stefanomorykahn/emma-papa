@@ -130,11 +130,11 @@
   .guardar{width:100%;background:var(--acento);color:#fff;border:none;border-radius:16px;padding:16px;font-size:17px;font-weight:600;cursor:pointer;margin-top:4px;transition:opacity .2s,transform .1s;}
   .guardar:active{transform:scale(.99);} .guardar:disabled{opacity:.45;cursor:not-allowed;}
   /* Guardar siempre a la mano en formularios largos: barra de acción fija sobre el nav (respeta safe-area).
-     Solo se ve cuando su vista está activa (la vista inactiva es display:none). La banda ::before
-     (color de fondo) hace que el contenido pase por debajo limpio, sin parecer que flota sobre texto. */
-  .guardar.sticky-save{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 70px);width:min(528px,calc(100% - 32px));z-index:45;box-shadow:0 6px 18px rgba(0,0,0,.18);}
-  .guardar.sticky-save::before{content:'';position:absolute;left:-60px;right:-60px;top:-18px;bottom:-72px;background:linear-gradient(to top,var(--crema) 82%,transparent);z-index:-1;pointer-events:none;}
-  #v-rapido,#v-comidas{padding-bottom:104px;}
+     El wrapper (fixed) lleva un degradado con el color de fondo → el contenido pasa por debajo limpio;
+     el botón va encima. Solo se ve cuando su vista está activa (la inactiva es display:none). */
+  .form-actions{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 62px);width:min(560px,100%);padding:16px 16px 14px;background:linear-gradient(to top,var(--crema) 72%,transparent);z-index:45;pointer-events:none;}
+  .form-actions .guardar{margin:0;pointer-events:auto;box-shadow:0 6px 18px rgba(0,0,0,.20);}
+  #v-rapido,#v-comidas{padding-bottom:108px;}
 
   .buscar{margin-bottom:14px;}
   .entrada{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
@@ -303,7 +303,7 @@
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
       <input type="file" id="r-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
-    <button class="guardar sticky-save" id="r-guardar" onclick="guardarRapido()" disabled>Guardar momento</button>
+    <div class="form-actions"><button class="guardar" id="r-guardar" onclick="guardarRapido()" disabled>Guardar momento</button></div>
   </section>
 
   <!-- ===== IDEAS ===== -->
@@ -333,7 +333,7 @@
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
       <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
-    <button class="guardar sticky-save" onclick="guardarComida()">Guardar comida</button>
+    <div class="form-actions"><button class="guardar" onclick="guardarComida()">Guardar comida</button></div>
   </section>
 
   <!-- ===== GASTOS ===== -->
