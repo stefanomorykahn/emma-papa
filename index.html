@@ -217,7 +217,7 @@
   .bar-val{width:78px;text-align:right;font-weight:600;flex:0 0 78px;}
   .bar-row.tend .bar-label{flex:0 0 92px;width:92px;}
   .bar-row.vacia{opacity:.4;}
-  .bar-row.gasto{gap:10px;} .bar-row.gasto .bar-label{flex:0 0 82px;width:82px;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .bar-row.gasto .bar-val{flex:0 0 124px;width:124px;}
+  .bar-row.gasto{gap:10px;} .bar-row.gasto .bar-label{flex:0 0 92px;width:92px;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .bar-row.gasto .bar-val{flex:0 0 118px;width:118px;}
   .sel-emma{width:100%;font-family:inherit;font-size:16px;min-height:52px;padding:12px 14px;border-radius:14px;border:1px solid var(--linea);background:var(--panel);color:var(--texto);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a8d84' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer;}
   .sel-emma:focus{outline:none;border-color:var(--acento);}
   #x-rango{display:none;gap:8px;margin-bottom:10px;}
@@ -679,6 +679,11 @@ function onGastoFotoPick(ev){const f=ev.target.files[0];if(f){gastoFoto={file:f,
 function renderGastoFotoPrev(){const c=$('x-foto');if(!c)return;
   c.innerHTML=gastoFoto?`<div class="foto-prev">${gastoFoto.previewUrl?`<img src="${gastoFoto.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarGastoFoto()">×</button></div>`:'';}
 function quitarGastoFoto(){if(gastoFoto&&gastoFoto.previewUrl)try{URL.revokeObjectURL(gastoFoto.previewUrl);}catch(e){}gastoFoto=null;renderGastoFotoPrev();}
+// TEST MANUAL (no duplicar gastos):
+//  1) Registrar momento con un monto en "Gasto" → Guardar. Abrir Gastos: debe decir "1 gasto".
+//  2) Gastos → "Agregar gasto" (aunque toques Guardar dos veces rápido) → debe crear "1 gasto".
+//  Garantías: un solo saveExpense por acción, botón deshabilitado mientras guarda (guardandoGasto),
+//  dedupGastos() al abrir Gastos une duplicados exactos, y el sync hace upsert por id.
 let guardandoGasto=false;
 async function guardarGasto(){
   if(guardandoGasto)return; // anti doble-tap (evita gasto duplicado)
@@ -780,7 +785,7 @@ function renderGastos(){
     <div class="pi-meta">${fechaCorta(e.date)}</div>${e.description?`<div class="cuerpo">${esc(e.description)}</div>`:''}
     <div class="acc">${e.receiptPhotoId?`<button class="mini" onclick="openSheet('${e.receiptPhotoId}')">Ver boleta</button>`:''}<button class="mini del" onclick="eliminarGasto('${e.id}')">Eliminar</button></div></div>`).join('');
 }
-function eliminarGasto(id){if(!confirm('¿Eliminar este gasto?'))return;EmmaStore.deleteExpense(id);renderGastos();toast('Gasto eliminado');}
+function eliminarGasto(id){if(!confirm('¿Eliminar este gasto? No se puede deshacer.'))return;EmmaStore.deleteExpense(id);renderGastos();toast('Gasto eliminado');}
 
 /* ===== Ideas ===== */
 let idsel={lugar:'',tiempo:'10',estado:'',objetivo:''};
@@ -975,7 +980,7 @@ function renderNotas(){const q=$('nt-buscar').value.trim().toLowerCase();const f
     <div class="cuerpo">${esc(n.text)}</div><div class="acc"><button class="mini" onclick="editarNota('${n.id}')">Editar</button><button class="mini del" onclick="eliminarNota('${n.id}')">Eliminar</button></div></div>`).join('');}
 function filtrarTag(t,el){$('nt-filtros').dataset.tag=t;el.parentElement.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));el.classList.add('on');renderNotas();}
 function editarNota(id){const n=EmmaNotes.getNotes().find(x=>x.id===id);if(!n)return;notaEditId=id;notaTags=[...(n.tags||[])];$('nt-text').value=n.text;$('nt-date').value=n.date;$('nt-deteccion').innerHTML='';pintarTagChips();$('nt-guardar').disabled=false;$('notaLista').style.display='none';$('notaEditor').style.display='block';}
-function eliminarNota(id){if(!confirm('¿Eliminar esta nota?'))return;EmmaNotes.deleteNote(id);rebuildProfile();renderNotas();toast('Nota eliminada');}
+function eliminarNota(id){if(!confirm('¿Eliminar esta nota? No se puede deshacer.'))return;EmmaNotes.deleteNote(id);rebuildProfile();renderNotas();toast('Nota eliminada');}
 
 /* ===== Historial (feed unificado: entradas + notas, con filtros) ===== */
 let histFiltro='todos';
@@ -1024,7 +1029,7 @@ function editar(id){const e=EmmaStore.getEntries().find(x=>x.id===id);if(!e)retu
   if($('r-actividades-txt'))$('r-actividades-txt').value=e.actividadesTexto||(e.activities||[]).join(', ');
   if($('r-comida-txt'))$('r-comida-txt').value=e.comidaTexto||[].concat(e.foods||[],e.fruits||[]).join(', ');
   refrescarChipsRapido();validarRapido();ir('rapido');toast('Editando');}
-function eliminar(id){if(!confirm('¿Eliminar este registro?'))return;EmmaStore.deleteEntry(id);rebuildProfile();renderHistorial();toast('Eliminado');}
+function eliminar(id){if(!confirm('¿Eliminar este momento? No se puede deshacer.'))return;EmmaStore.deleteEntry(id);rebuildProfile();renderHistorial();toast('Eliminado');}
 
 /* ===== Perfil ===== */
 let perfTab='resumen';let decVer=false;
