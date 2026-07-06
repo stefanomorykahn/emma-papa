@@ -648,15 +648,7 @@ function marcarTodo(id){
   rebuildProfile(); toast('¡Anotado! 🎉'); renderTodo();
 }
 function setTodoFiltro(k){todoFiltro=k;renderTodo();}
-function renderTodo(){
-  const cont=$('todo-lista'); if(!cont)return;
-  $('todo-filtros').innerHTML=TODO_FILTROS.map(([k,l])=>`<button class="chip${k===todoFiltro?' on':''}" onclick="setTodoFiltro('${k}')">${esc(l)}</button>`).join('');
-  let items=(window.EmmaBank&&EmmaBank.LIMA_TODO?EmmaBank.LIMA_TODO:[]).slice();
-  if(todoFiltro!=='todas')items=items.filter(it=>(it.tags||[]).includes(todoFiltro));
-  items=items.map(it=>({it,fecha:todoRealizada(it)}));
-  items.sort((a,b)=>(a.fecha?1:0)-(b.fecha?1:0)); // no realizadas primero
-  if(!items.length){cont.innerHTML='<p class="p-vacio">No hay salidas en este filtro.</p>';return;}
-  cont.innerHTML=items.map(({it,fecha})=>`<div class="p-bloque" style="margin-bottom:12px">
+function todoCard({it,fecha}){return `<div class="p-bloque" style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <b style="font-size:16px;line-height:1.25">${esc(it.title)}</b>
       <span class="estado e-neu" style="flex:0 0 auto">${esc(it.zona)}</span></div>
@@ -668,8 +660,21 @@ function renderTodo(){
     <div class="pi-meta" style="margin-top:4px;font-style:italic">💡 ${esc(it.tip)}</div>
     <div style="margin-top:11px">${fecha
       ?`<button class="mini" onclick="marcarTodo('${it.id}')">↻ Hacer de nuevo</button>`
-      :`<button class="guardar" style="max-width:230px" onclick="marcarTodo('${it.id}')">Marcar como realizada</button>`}</div>
-  </div>`).join('');
+      :`<button class="mini" style="background:var(--acento);color:#fff;border-color:var(--acento)" onclick="marcarTodo('${it.id}')">✓ Marcar como realizada</button>`}</div>
+  </div>`;}
+function renderTodo(){
+  const cont=$('todo-lista'); if(!cont)return;
+  $('todo-filtros').innerHTML=TODO_FILTROS.map(([k,l])=>`<button class="chip${k===todoFiltro?' on':''}" onclick="setTodoFiltro('${k}')">${esc(l)}</button>`).join('');
+  let items=(window.EmmaBank&&EmmaBank.LIMA_TODO?EmmaBank.LIMA_TODO:[]).slice();
+  if(todoFiltro!=='todas')items=items.filter(it=>(it.tags||[]).includes(todoFiltro));
+  const conFecha=items.map(it=>({it,fecha:todoRealizada(it)}));
+  if(!conFecha.length){cont.innerHTML='<p class="p-vacio">No hay salidas en este filtro.</p>';return;}
+  const pendientes=conFecha.filter(x=>!x.fecha);
+  const realizadas=conFecha.filter(x=>x.fecha).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')); // más recientes primero
+  let html='';
+  if(pendientes.length)html+='<div class="p-sub">Por hacer</div>'+pendientes.map(todoCard).join('');
+  if(realizadas.length)html+='<div class="p-sub">Realizadas ('+realizadas.length+')</div>'+realizadas.map(todoCard).join('');
+  cont.innerHTML=html;
 }
 function pickGastoFoto(){
   if(driveListo()){$('x-foto-input').click();}
