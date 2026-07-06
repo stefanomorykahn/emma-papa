@@ -194,6 +194,9 @@
   .bar-val{width:78px;text-align:right;font-weight:600;flex:0 0 78px;}
   .bar-row.tend .bar-label{flex:0 0 92px;width:92px;}
   .bar-row.vacia{opacity:.4;}
+  .bar-row.gasto{gap:10px;} .bar-row.gasto .bar-label{flex:0 0 82px;width:82px;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .bar-row.gasto .bar-val{flex:0 0 124px;width:124px;}
+  .sel-emma{width:100%;font-family:inherit;font-size:16px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--linea);background:var(--panel);color:var(--texto);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a8d84' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer;}
+  .sel-emma:focus{outline:none;border-color:var(--acento);}
   #x-rango{display:none;gap:8px;margin-bottom:10px;}
   #x-rango input{width:auto;flex:1;padding:10px 12px;font-size:14px;}
 
@@ -257,14 +260,12 @@
   <section class="vista" id="v-rapido">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Registrar momento</h2></div>
     <div class="fecha-linea"><span>Fecha:</span><input type="date" id="r-date" /></div>
-    <div class="campo"><label>¿Cómo estuvo Emma?</label><div class="chips" id="r-estado"></div></div>
-    <div class="campo"><label>¿Qué hicimos?</label><div class="chips multi" id="r-actividades"></div></div>
+    <div class="campo"><label>¿Cómo estuvo Emma?</label><select class="sel-emma" id="r-estado-sel" onchange="sel.estado=this.value;validarRapido();guardarBorrador();"><option value="">Elige…</option></select></div>
+    <div class="campo"><label>¿Qué hicimos?</label><textarea id="r-actividades-txt" oninput="guardarBorrador()" placeholder="Escríbelo con tus palabras… (ej. jugamos con agua y bailó un rato)"></textarea></div>
     <div class="campo"><label>¿Qué le gustó más? <span class="op">(opcional)</span></label>
       <input type="text" id="r-gusto" list="dl-gusto" placeholder="Ej. jugar con agua" /><datalist id="dl-gusto"></datalist></div>
     <div class="campo"><label>Fruta o comida <span class="op">(opcional)</span></label>
-      <div class="chips multi" id="r-comida"></div>
-      <input type="text" id="r-comida-otro" list="dl-food" placeholder="Otra… (escribe y Enter)" style="margin-top:10px;display:none;" /><datalist id="dl-food"></datalist></div>
-    <div class="campo" id="campo-resultado" style="display:none;"><label>¿Le gustó la comida?</label><div class="chips" id="r-resultado"></div></div>
+      <textarea id="r-comida-txt" oninput="guardarBorrador()" placeholder="Ej. comió mango y le encantó, no quiso pollo"></textarea></div>
     <div class="campo"><label>Palabra nueva <span class="op">(opcional)</span></label>
       <input type="text" id="r-palabra" list="dl-word" placeholder="Ej. 'papá'" /><datalist id="dl-word"></datalist></div>
     <div class="campo"><label>Nota rápida <span class="op">(opcional · dicta 🎙️)</span></label><textarea id="r-nota" placeholder="Algo para recordar…"></textarea></div>
@@ -272,13 +273,11 @@
     <div class="campo"><label>Constancia / boleta <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-boleta"></div>
       <button type="button" class="mini" onclick="pickBoleta()">＋ Foto de la boleta</button>
-      <button type="button" class="mini" onclick="pegarEnlaceBoleta()">🔗 Pegar enlace</button>
       <input type="file" id="r-boleta-input" accept="image/*" style="display:none" onchange="onBoletaPick(event)" />
     </div>
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="r-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
-      <button type="button" class="mini" onclick="pegarEnlaceFoto()">🔗 Pegar enlace</button>
       <input type="file" id="r-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
     <button class="guardar" id="r-guardar" onclick="guardarRapido()" disabled>Guardar</button>
@@ -302,15 +301,13 @@
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Comidas de Emma</h2></div>
     <div class="fecha-linea"><span>Fecha:</span><input type="date" id="c-date" /></div>
     <div class="campo"><label>Momento</label><div class="chips" id="c-hora"></div></div>
-    <div class="campo"><label>¿Qué comió?</label><div class="chips multi" id="c-comidas"></div>
-      <input type="text" id="c-otro" list="dl-cfood" placeholder="Otra… (escribe)" style="margin-top:10px;display:none;" /><datalist id="dl-cfood"></datalist></div>
+    <div class="campo"><label>¿Qué comió?</label><textarea id="c-comidas-txt" placeholder="Ej. arroz con pollo y un poco de plátano"></textarea></div>
     <div class="campo"><label>Cantidad <span class="op">(opcional)</span></label><div class="chips" id="c-cantidad"></div></div>
-    <div class="campo"><label>Resultado</label><div class="chips" id="c-resultado"></div></div>
+    <div class="campo"><label>Resultado</label><select class="sel-emma" id="c-resultado-sel"><option value="">Elige…</option></select></div>
     <div class="campo"><label>Nota <span class="op">(opcional)</span></label><textarea id="c-nota" placeholder="Ej. pidió más"></textarea></div>
     <div class="campo"><label>Fotos <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="c-fotos"></div>
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
-      <button type="button" class="mini" onclick="pegarEnlaceFoto()">🔗 Pegar enlace</button>
       <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
     <button class="guardar" onclick="guardarComida()">Guardar comida</button>
@@ -473,10 +470,9 @@
     <div class="campo" style="text-align:left"><label>Constancia / boleta <span class="op">(opcional)</span></label>
       <div class="foto-chips" id="x-foto"></div>
       <button type="button" class="mini" onclick="pickGastoFoto()">＋ Foto de la boleta</button>
-      <button type="button" class="mini" onclick="pegarEnlaceGastoFoto()">🔗 Pegar enlace</button>
       <input type="file" id="x-foto-input" accept="image/*" style="display:none" onchange="onGastoFotoPick(event)" />
     </div>
-    <button class="guardar" onclick="guardarGasto()">Guardar gasto</button>
+    <button class="guardar" id="x-guardar" onclick="guardarGasto()">Guardar gasto</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('gastoOverlay').classList.remove('show');return false;">Cancelar</a></p>
   </div>
 </div>
@@ -517,43 +513,54 @@ function chipsSingle(cid,lista,campo,obj){const c=$(cid);c.innerHTML='';lista.fo
 function chipsMulti(cid,lista,arrKey,cb){const c=$(cid);c.innerHTML='';lista.forEach(n=>{const ch=document.createElement('span');ch.className='chip multi';ch.textContent=n;
   if(sel[arrKey].includes(n))ch.classList.add('on');ch.onclick=()=>{const a=sel[arrKey];const i=a.indexOf(n);if(i>=0){a.splice(i,1);ch.classList.remove('on');}else{a.push(n);ch.classList.add('on');}validarRapido();guardarBorrador();if(cb)cb();};c.appendChild(ch);});}
 function refrescarChipsRapido(){
-  chipsSingle('r-estado',ESTADOS,'estado',sel);
-  chipsMulti('r-actividades',EmmaProfile.getSuggestedChips('activity').concat('Otro'),'actividades');
-  chipsMulti('r-comida',EmmaProfile.getSuggestedChips('food').concat('Otro'),'comidas',()=>{
-    $('r-comida-otro').style.display=sel.comidas.includes('Otro')?'block':'none';
-    $('campo-resultado').style.display=(sel.comidas.filter(x=>x!=='Otro').length||$('r-comida-otro').value)?'block':'none';});
-  chipsSingle('r-resultado',RESULTADOS,'resultado',sel);
+  const se=$('r-estado-sel');
+  if(se){se.innerHTML='<option value="">Elige…</option>'+ESTADOS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');se.value=sel.estado||'';}
   llenarDatalist('dl-gusto',EmmaProfile.historyTokens('liked').concat(EmmaProfile.historyTokens('activity')));
-  llenarDatalist('dl-food',EmmaProfile.historyTokens('food'));llenarDatalist('dl-word',EmmaProfile.historyTokens('word'));
-  $('campo-resultado').style.display=(sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}
+  llenarDatalist('dl-word',EmmaProfile.historyTokens('word'));}
 function llenarDatalist(id,items){const dl=$(id);if(!dl)return;dl.innerHTML=[...new Set(items)].map(x=>`<option value="${esc(x)}">`).join('');}
-function validarRapido(){$('r-guardar').disabled=!(sel.estado&&sel.actividades.length>0);}
-function comidasFinales(){const b=sel.comidas.filter(x=>x!=='Otro');const o=$('r-comida-otro').value.trim();if(o)b.push(o);return b;}
-function guardarRapido(){const g=id=>$(id).value.trim();const foods=comidasFinales();
-  const e={date:$('r-date').value||hoyISO(),mood:sel.estado,activities:[...sel.actividades].filter(x=>x!=='Otro'),
-    liked:g('r-gusto')?[g('r-gusto')]:[],foods:foods,fruits:[],food_result:foods.length?sel.resultado:'',
-    newWords:g('r-palabra')?[g('r-palabra')]:[],calmingThings:[],frustrations:[],places:[],people:[],note:g('r-nota')};
+function validarRapido(){$('r-guardar').disabled=!sel.estado;}
+// Texto crudo (lo que escribe el usuario) que la IA analiza para organizar actividades/comidas.
+function textoLibreEntrada(mood,actTxt,comTxt,gusto,nota){
+  const p=[];if(mood)p.push('Estado: '+mood+'.');if(actTxt)p.push('Hicimos: '+actTxt+'.');
+  if(comTxt)p.push('Comió: '+comTxt+'.');if(gusto)p.push('Le gustó: '+gusto+'.');if(nota)p.push(nota);
+  return p.join(' ');}
+// Analiza la entrada con IA de inmediato (si está activa y hay conexión) para organizarla.
+function analizarEntradaAhora(entry){
+  if(!entry||!(window.EmmaAI&&EmmaAI.enabled&&EmmaAI.enabled())||!navigator.onLine)return;
+  const text=(entry.freeText||entry.note||'').trim();if(!text)return;
+  EmmaAI.analyzeEntryWithAI({kind:'entry',id:entry.id,date:entry.date,text:text}).then(()=>{
+    rebuildProfile();
+    try{EmmaStore.setMeta({lastProfileUpdate:new Date().toISOString()});}catch(e){}
+    const a=document.querySelector('.vista.activa');if(a&&a.id==='v-perfil')renderPerfil();else if(a&&a.id==='v-inicio')renderInicio();
+  }).catch(()=>{});}
+function guardarRapido(){const g=id=>{const el=$(id);return el?el.value.trim():'';};
+  const actTxt=g('r-actividades-txt'),comTxt=g('r-comida-txt'),gusto=g('r-gusto'),nota=g('r-nota');
+  const freeText=textoLibreEntrada(sel.estado,actTxt,comTxt,gusto,nota);
+  const e={date:$('r-date').value||hoyISO(),mood:sel.estado,activities:[],
+    liked:gusto?[gusto]:[],foods:[],fruits:[],food_result:'',
+    newWords:g('r-palabra')?[g('r-palabra')]:[],calmingThings:[],frustrations:[],places:[],people:[],
+    note:nota,freeText:freeText,actividadesTexto:actTxt,comidaTexto:comTxt,analysis_status:'pending'};
   let entry;
   if(editandoId){entry=EmmaStore.updateEntry(editandoId,e);editandoId=null;toast('Actualizado ✓');}else{entry=EmmaStore.saveEntry(e);toast('Guardado ✓');}
   rebuildProfile();
+  analizarEntradaAhora(entry); // la IA organiza actividades/comidas del texto
   if(fotosPendientes.length&&entry)procesarFotos(entry); // sube en segundo plano
   const gm=parseMonto($('r-gasto-monto').value);
   if(gm>0&&entry){
     const exp=EmmaStore.saveExpense({entryId:entry.id,date:entry.date,amount:gm,
-      category:(foods.length?'Comida':'Otro'),description:g('r-nota')||sel.actividades.join(', ')});
+      category:(comTxt?'Comida':'Otro'),description:nota||actTxt});
     const bo=boletaPendiente; boletaPendiente=null;
-    if(bo&&window.EmmaPhotos){(async()=>{try{let ph;
-      if(bo.file){ph=await EmmaPhotos.addFromFile(bo.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));}
-      else if(bo.url){ph=EmmaPhotos.addFromLink(bo.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
+    if(bo&&bo.file&&window.EmmaPhotos){(async()=>{try{
+      const ph=await EmmaPhotos.addFromFile(bo.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));
       if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
     }catch(e){toast('No se pudo subir la boleta');}})();}
   }
   limpiarRapido();ir('inicio');}
-function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-comida-otro','r-gasto-monto'].forEach(id=>$(id).value='');
-  $('r-date').value=hoyISO();$('r-comida-otro').style.display='none';$('campo-resultado').style.display='none';localStorage.removeItem('emmaDraftQuick');refrescarChipsRapido();validarRapido();
+function limpiarRapido(){sel={estado:'',actividades:[],comidas:[],resultado:''};['r-gusto','r-palabra','r-nota','r-actividades-txt','r-comida-txt','r-gasto-monto'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  $('r-date').value=hoyISO();const se=$('r-estado-sel');if(se)se.value='';localStorage.removeItem('emmaDraftQuick');refrescarChipsRapido();validarRapido();
   fotosPendientes=[];renderFotoPrev();boletaPendiente=null;renderBoletaPrev();}
-function guardarBorrador(){localStorage.setItem('emmaDraftQuick',JSON.stringify({date:$('r-date').value,sel,gusto:$('r-gusto').value,palabra:$('r-palabra').value,nota:$('r-nota').value,otro:$('r-comida-otro').value}));}
-function restaurarBorrador(){if(editandoId)return;try{const d=JSON.parse(localStorage.getItem('emmaDraftQuick'));if(!d)return;sel=d.sel||sel;$('r-date').value=d.date||hoyISO();$('r-gusto').value=d.gusto||'';$('r-palabra').value=d.palabra||'';$('r-nota').value=d.nota||'';$('r-comida-otro').value=d.otro||'';}catch(e){}}
+function guardarBorrador(){try{localStorage.setItem('emmaDraftQuick',JSON.stringify({date:$('r-date').value,sel,gusto:$('r-gusto').value,palabra:$('r-palabra').value,nota:$('r-nota').value,act:($('r-actividades-txt')||{}).value||'',com:($('r-comida-txt')||{}).value||''}));}catch(e){}}
+function restaurarBorrador(){if(editandoId)return;try{const d=JSON.parse(localStorage.getItem('emmaDraftQuick'));if(!d)return;sel=d.sel||sel;$('r-date').value=d.date||hoyISO();$('r-gusto').value=d.gusto||'';$('r-palabra').value=d.palabra||'';$('r-nota').value=d.nota||'';if($('r-actividades-txt'))$('r-actividades-txt').value=d.act||'';if($('r-comida-txt'))$('r-comida-txt').value=d.com||'';}catch(e){}}
 
 /* ===== Comidas de Emma ===== */
 let comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};
@@ -563,24 +570,25 @@ function chipsMultiObj(cid,lista,obj,key,cb){const c=$(cid);c.innerHTML='';obj[k
     ch.onclick=()=>{const a=obj[key];const i=a.indexOf(n);if(i>=0){a.splice(i,1);ch.classList.remove('on');}else{a.push(n);ch.classList.add('on');}if(cb)cb();};c.appendChild(ch);});}
 function initComidas(){
   chipsSingle('c-hora',['Desayuno','Media mañana','Almuerzo','Merienda','Cena','Leche'],'hora',comidaSel);
-  const lista=[...new Set(MENU_COMIDAS.concat(EmmaProfile.historyTokens('food')))].slice(0,42).concat('Otro');
-  chipsMultiObj('c-comidas',lista,comidaSel,'comidas',()=>{$('c-otro').style.display=comidaSel.comidas.includes('Otro')?'block':'none';});
   chipsSingle('c-cantidad',['Poca','Normal','Bastante'],'cantidad',comidaSel);
-  chipsSingle('c-resultado',['Le gustó','Comió poco','No quiso','Pidió más','Probó nuevo'],'resultado',comidaSel);
-  llenarDatalist('dl-cfood',EmmaProfile.historyTokens('food'));
+  const cs=$('c-resultado-sel');if(cs)cs.innerHTML='<option value="">Elige…</option>'+['Le gustó','Comió poco','No quiso','Pidió más','Probó nuevo'].map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
   if(!$('c-date').value)$('c-date').value=hoyISO();
 }
 function guardarComida(){
-  const foods=comidaSel.comidas.filter(x=>x!=='Otro');const otro=$('c-otro').value.trim();if(otro)foods.push(otro);
-  if(!foods.length){toast('Elige al menos una comida');return;}
-  const r=comidaSel.resultado;
-  const fr=(r==='Le gustó'||r==='Pidió más')?'Le gustó':(r==='No quiso'?'No le gustó':'Neutral');
-  const nota=[comidaSel.hora,comidaSel.cantidad?('Cantidad: '+comidaSel.cantidad):'',r,$('c-nota').value.trim()].filter(Boolean).join(' · ');
-  const entry=EmmaStore.saveEntry({date:$('c-date').value||hoyISO(),mood:'',activities:[],liked:(fr==='Le gustó'?[...foods]:[]),
-    foods:foods,fruits:[],food_result:fr,newWords:[],calmingThings:[],frustrations:[],places:[],people:[],note:nota});
-  rebuildProfile();
+  const el=$('c-comidas-txt');const comTxt=el?el.value.trim():'';
+  if(!comTxt){toast('Escribe qué comió');return;}
+  const hora=comidaSel.hora,cantidad=comidaSel.cantidad,res=($('c-resultado-sel')||{}).value||'',nota=$('c-nota').value.trim();
+  // La IA infiere foods/fruits y su sentimiento del texto; el "resultado" del dropdown va a food_result.
+  const fr=(res==='Le gustó'||res==='Pidió más')?'Le gustó':(res==='No quiso'?'No le gustó':(res?'Neutral':''));
+  const notaFull=[hora,cantidad?('Cantidad: '+cantidad):'',res,nota].filter(Boolean).join(' · ');
+  const parts=[];if(hora)parts.push(hora+'.');parts.push('Comió: '+comTxt+'.');if(cantidad)parts.push('Cantidad: '+cantidad+'.');if(res)parts.push('Resultado: '+res+'.');if(nota)parts.push(nota);
+  const freeText=parts.join(' ');
+  const entry=EmmaStore.saveEntry({date:$('c-date').value||hoyISO(),mood:'',activities:[],liked:[],
+    foods:[],fruits:[],food_result:fr,newWords:[],calmingThings:[],frustrations:[],places:[],people:[],
+    note:notaFull,freeText:freeText,comidaTexto:comTxt,analysis_status:'pending'});
+  rebuildProfile();analizarEntradaAhora(entry);
   if(fotosPendientes.length&&entry)procesarFotos(entry);
-  comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};$('c-nota').value='';$('c-otro').value='';$('c-otro').style.display='none';
+  comidaSel={hora:'',comidas:[],cantidad:'',resultado:''};$('c-nota').value='';if(el)el.value='';const cs=$('c-resultado-sel');if(cs)cs.value='';
   toast('Comida guardada ✓');ir('inicio');
 }
 
@@ -594,7 +602,7 @@ let gastoSel={cat:''}; let gastoFoto=null; // {file?,url?,previewUrl}
 function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
 function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
 function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses().filter(e=>(e.date||'').slice(0,7)===mes).reduce((s,e)=>s+(Number(e.amount)||0),0);}
-function initGastos(){ renderGastos(); } // la vista Gastos es solo lectura/analítica; el registro está en "Registrar momento"
+function initGastos(){ const n=dedupGastos(); renderGastos(); if(n)toast('Se unieron '+n+' gasto'+(n>1?'s':'')+' duplicado'+(n>1?'s':'')); } // limpia duplicados al abrir; el registro está en "Registrar momento"
 
 /* ===== To Do · Salidas en Lima (checklist) ===== */
 let todoFiltro='todas';
@@ -641,29 +649,39 @@ function renderTodo(){
   </div>`).join('');
 }
 function pickGastoFoto(){
-  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$('x-foto-input').click();}
-  else pegarEnlaceGastoFoto();
+  if(driveListo()){$('x-foto-input').click();}
+  else toast('Conecta Google Drive en Ajustes para subir fotos');
 }
-function pegarEnlaceGastoFoto(){const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){gastoFoto={url:u.trim(),previewUrl:''};renderGastoFotoPrev();}}
 function onGastoFotoPick(ev){const f=ev.target.files[0];if(f){gastoFoto={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderGastoFotoPrev();}
 function renderGastoFotoPrev(){const c=$('x-foto');if(!c)return;
   c.innerHTML=gastoFoto?`<div class="foto-prev">${gastoFoto.previewUrl?`<img src="${gastoFoto.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarGastoFoto()">×</button></div>`:'';}
 function quitarGastoFoto(){if(gastoFoto&&gastoFoto.previewUrl)try{URL.revokeObjectURL(gastoFoto.previewUrl);}catch(e){}gastoFoto=null;renderGastoFotoPrev();}
+let guardandoGasto=false;
 async function guardarGasto(){
+  if(guardandoGasto)return; // anti doble-tap (evita gasto duplicado)
   const amount=parseMonto($('x-monto').value);
   if(!(amount>0)){toast('Escribe un monto');return;}
-  const exp=EmmaStore.saveExpense({date:$('x-date').value||hoyISO(),amount,category:gastoSel.cat||'Otro',description:$('x-desc').value.trim()});
-  const f=gastoFoto;gastoFoto=null;
-  if(f&&window.EmmaPhotos){
-    try{let ph;
-      if(f.file){ph=await EmmaPhotos.addFromFile(f.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));}
-      else if(f.url){ph=EmmaPhotos.addFromLink(f.url,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']});}
-      if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
-    }catch(err){toast('No se pudo subir la boleta');}
-  }
-  gastoSel={cat:''};$('x-monto').value='';$('x-desc').value='';renderGastoFotoPrev();
-  const ov=$('gastoOverlay');if(ov)ov.classList.remove('show');
-  toast('Gasto guardado ✓');renderGastos();
+  guardandoGasto=true;const btn=$('x-guardar');if(btn)btn.disabled=true;
+  try{
+    const exp=EmmaStore.saveExpense({date:$('x-date').value||hoyISO(),amount,category:gastoSel.cat||'Otro',description:$('x-desc').value.trim()});
+    const f=gastoFoto;gastoFoto=null;
+    if(f&&f.file&&window.EmmaPhotos){
+      try{const ph=await EmmaPhotos.addFromFile(f.file,{date:exp.date,title:'Boleta · '+exp.category,tags:['boleta','gasto']},m=>toast(m));
+        if(ph)EmmaStore.updateExpense(exp.id,{receiptPhotoId:ph.id});
+      }catch(err){toast('No se pudo subir la boleta');}
+    }
+    gastoSel={cat:''};$('x-monto').value='';$('x-desc').value='';renderGastoFotoPrev();
+    const ov=$('gastoOverlay');if(ov)ov.classList.remove('show');
+    toast('Gasto guardado ✓');renderGastos();
+  }finally{guardandoGasto=false;const b=$('x-guardar');if(b)b.disabled=false;}
+}
+// Une duplicados EXACTOS (misma fecha+monto+categoría+descripción → deja 1, el más antiguo).
+function dedupGastos(){
+  const all=EmmaStore.getExpenses().filter(e=>!e.deleted).slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
+  const dups=gastosDuplicados(all);
+  if(!dups.length)return 0;
+  dups.forEach(e=>{try{EmmaStore.deleteExpense(e.id);}catch(_){}});
+  return dups.length;
 }
 function abrirNuevoGasto(){
   gastoSel={cat:''};gastoFoto=null;
@@ -700,7 +718,7 @@ function graficoAnual(anio){
   EmmaStore.getExpenses().forEach(e=>{const d=e.date||'';if(d.slice(0,4)===String(anio)){const mi=parseInt(d.slice(5,7),10)-1;if(mi>=0&&mi<12)tot[mi]+=Number(e.amount)||0;}});
   const totalAnio=tot.reduce((a,b)=>a+b,0);if(totalAnio<=0)return '';
   const max=Math.max(1,...tot);const mesAct=(new Date().getFullYear()===anio)?new Date().getMonth():-1;
-  const cols=tot.map((t,i)=>{const barPx=Math.round((t/max)*78);const on=i===mesAct;return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="${ini[i]}: ${moneda(t)}"><div style="height:95px;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px"><div style="font-size:9px;line-height:11px;white-space:nowrap;${on?'color:var(--acento);font-weight:700':'color:var(--suave)'}">${t>0?kCorto(t):''}</div><div style="width:64%;height:${barPx}px;min-height:${t>0?3:0}px;background:${on?'var(--acento)':'var(--acento-2)'};border-radius:4px 4px 0 0;opacity:${t>0?1:.22};transition:height .3s"></div></div><div class="pi-meta" style="font-size:10px${on?';color:var(--acento);font-weight:700':''}">${ini[i]}</div></div>`;}).join('');
+  const cols=tot.map((t,i)=>{const barPx=Math.round((t/max)*78);const on=i===mesAct;return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="${ini[i]}: ${moneda(t)}"><div style="height:95px;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px"><div style="font-size:8px;line-height:10px;white-space:nowrap;overflow:visible;${on?'color:var(--acento);font-weight:700':'color:var(--suave)'}">${t>0?kCorto(t):''}</div><div style="width:64%;height:${barPx}px;min-height:${t>0?3:0}px;background:${on?'var(--acento)':'var(--acento-2)'};border-radius:4px 4px 0 0;opacity:${t>0?1:.22};transition:height .3s"></div></div><div class="pi-meta" style="font-size:10px${on?';color:var(--acento);font-weight:700':''}">${ini[i]}</div></div>`;}).join('');
   return `<div style="margin-top:14px;border-top:1px solid var(--linea);padding-top:12px"><div class="pi-meta" style="margin-bottom:8px">Gastos ${anio} · <b style="color:var(--texto)">${moneda(totalAnio)}</b></div><div style="display:flex;align-items:flex-end;gap:3px">${cols}</div></div>`;
 }
 // Detecta posibles duplicados: mismo día, monto, categoría y descripción. Devuelve los "extras".
@@ -716,18 +734,6 @@ function renderGastos(){
   const list=EmmaStore.getExpenses().filter(e=>{const d=e.date||'';return d>=desde&&d<=hasta;})
     .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   const total=list.reduce((s,e)=>s+(Number(e.amount)||0),0);const count=list.length;
-  const promGasto=count?total/count:0;
-  // promedio por día (desde el primer gasto hasta hoy o fin de periodo)
-  const hoy=hoyISO();const fechas=list.map(e=>e.date).filter(Boolean).sort();
-  const desdeEf=fechas.length?fechas[0]:desde;const finEf=(hasta<hoy?hasta:hoy);
-  const dias=Math.max(1,Math.round((new Date(finEf)-new Date(desdeEf))/86400000)+1);
-  const promDia=total/dias;
-  // proyección (solo el mes en curso)
-  let proyeccion=null;
-  if(gastoPeriodo==='mes'&&count){const dd=new Date();const diaAct=dd.getDate();const diasMes=new Date(dd.getFullYear(),dd.getMonth()+1,0).getDate();proyeccion=diaAct?total/diaAct*diasMes:total;}
-  // día más caro
-  const porDia={};list.forEach(e=>{const d=e.date||'';if(d)porDia[d]=(porDia[d]||0)+(Number(e.amount)||0);});
-  const maxDia=Object.values(porDia).length?Math.max(...Object.values(porDia)):0;
   // comparación con el periodo anterior
   const ant=rangoAnterior();let vsHtml='';
   if(ant){const prev=gastoTotalRango(ant.d1,ant.d2);
@@ -736,17 +742,12 @@ function renderGastos(){
   // por categoría (barras + %)
   const porCat={};list.forEach(e=>{const c=e.category||'Otro';porCat[c]=(porCat[c]||0)+(Number(e.amount)||0);});
   const cats=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);const maxCat=cats.length?cats[0][1]:0;
-  const catHtml=cats.length?'<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div class="pi-meta" style="margin-bottom:6px">Por categoría</div>'+
-    cats.map(([c,m])=>`<div class="bar-row"><span class="bar-label">${esc(c)}</span><span class="bar-track"><span class="bar-fill" style="width:${maxCat?Math.round(m/maxCat*100):0}%"></span></span><span class="bar-val">${moneda(m)} <span class="pi-meta">${total?Math.round(m/total*100):0}%</span></span></div>`).join('')+'</div>':'';
+  const catHtml=cats.length?'<div style="margin-top:12px;border-top:1px solid var(--linea);padding-top:10px"><div style="margin-bottom:8px"><b>Gastos por categoría</b></div>'+
+    cats.map(([c,m])=>`<div class="bar-row gasto"><span class="bar-label">${esc(c)}</span><span class="bar-track"><span class="bar-fill" style="width:${maxCat?Math.round(m/maxCat*100):0}%"></span></span><span class="bar-val">${moneda(m)} <span class="pi-meta">${total?Math.round(m/total*100):0}%</span></span></div>`).join('')+'</div>':'';
   // gráfico de barras del año (Ene–Dic) — del año del periodo seleccionado
   const anioG=parseInt((desde||'').slice(0,4),10)||new Date().getFullYear();
   const barras=graficoAnual(anioG);
-  // métricas rápidas
-  const tercer=proyeccion!=null
-    ?`<div class="stat"><div class="n" style="font-size:15px">${moneda(proyeccion)}</div><div class="l">proyección mes</div></div>`
-    :`<div class="stat"><div class="n" style="font-size:15px">${maxDia?moneda(maxDia):'—'}</div><div class="l">día más caro</div></div>`;
-  const statsHtml=count?`<div class="stats3" style="margin-top:12px"><div class="stat"><div class="n" style="font-size:15px">${moneda(promGasto)}</div><div class="l">por gasto</div></div><div class="stat"><div class="n" style="font-size:15px">${moneda(promDia)}</div><div class="l">por día</div></div>${tercer}</div>`:'';
-  $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:26px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${count} gasto${count!==1?'s':''}${vsHtml}</div>${statsHtml}${catHtml}${barras}`;
+  $('gastoResumen').innerHTML=`<h3>Total${label?' · '+label:''}</h3><div style="font-size:26px;font-weight:700;color:var(--acento)">${moneda(total)}</div><div class="pi-meta">${count} gasto${count!==1?'s':''}${vsHtml}</div>${catHtml}${barras}`;
   const cont=$('gastoLista');
   const dups=gastosDuplicados(list);const dupIds=new Set(dups.map(e=>e.id));
   const banner=dups.length?`<div class="aviso" style="border-left-color:var(--acento);display:flex;align-items:center;gap:10px;justify-content:space-between">⚠️ ${dups.length} posible${dups.length>1?'s':''} duplicado${dups.length>1?'s':''} <button class="mini" onclick="gastoSoloDup=!gastoSoloDup;renderGastos()">${gastoSoloDup?'Ver todos':'Revisar'}</button></div>`:'';
@@ -797,11 +798,11 @@ function ideaConFoto(r){const entry=guardarActividad(r,'');if(entry)agregarFotoA
 let fotosPendientes=[]; // {file?, url?, previewUrl}
 let boletaPendiente=null; // {file?, url?, previewUrl} — constancia de un gasto
 let fotoTarget='r-fotos'; let fotoInputId='r-foto-input';
+function driveListo(){return !!(window.EmmaPhotos&&EmmaPhotos.driveEnabled()&&EmmaPhotos.status&&EmmaPhotos.status().estado==='conectado');}
 function pickFoto(){
-  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$(fotoInputId).click();}
-  else pegarEnlaceFoto();
+  if(driveListo()){$(fotoInputId).click();}
+  else toast('Conecta Google Drive en Ajustes para subir fotos');
 }
-function pegarEnlaceFoto(){const u=prompt('Pega el enlace de la foto en Google Drive:');if(u&&u.trim()){fotosPendientes.push({url:u.trim(),previewUrl:''});renderFotoPrev();}}
 function onFotoPick(ev){[...ev.target.files].forEach(file=>{fotosPendientes.push({file,previewUrl:URL.createObjectURL(file)});});ev.target.value='';renderFotoPrev();}
 function renderFotoPrev(){
   const c=$(fotoTarget);if(!c)return;
@@ -817,10 +818,9 @@ function agregarFotoAEntrada(entryId,date,tags){
 }
 function removeFoto(i){const f=fotosPendientes[i];if(f&&f.previewUrl)try{URL.revokeObjectURL(f.previewUrl);}catch(e){}fotosPendientes.splice(i,1);renderFotoPrev();}
 function pickBoleta(){
-  if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){document.getElementById('r-boleta-input').click();}
-  else pegarEnlaceBoleta();
+  if(driveListo()){document.getElementById('r-boleta-input').click();}
+  else toast('Conecta Google Drive en Ajustes para subir fotos');
 }
-function pegarEnlaceBoleta(){const u=prompt('Pega el enlace de la boleta en Google Drive:');if(u&&u.trim()){boletaPendiente={url:u.trim(),previewUrl:''};renderBoletaPrev();}}
 function onBoletaPick(ev){const f=ev.target.files[0];if(f){boletaPendiente={file:f,previewUrl:URL.createObjectURL(f)};}ev.target.value='';renderBoletaPrev();}
 function renderBoletaPrev(){const c=document.getElementById('r-boleta');if(!c)return;
   c.innerHTML=boletaPendiente?`<div class="foto-prev">${boletaPendiente.previewUrl?`<img src="${boletaPendiente.previewUrl}">`:'<div style="display:grid;place-items:center;height:100%;color:var(--suave);font-size:11px">🔗 Drive</div>'}<button class="rm" onclick="quitarBoleta()">×</button></div>`:'';}
@@ -997,7 +997,9 @@ function tarjetaNota(n){
     <div class="acc"><button class="mini" onclick="ir('notas');setTimeout(()=>editarNota('${n.id}'),50)">Editar</button><button class="mini del" onclick="eliminarNota('${n.id}');renderHistorial()">Eliminar</button></div></div>`;}
 function editar(id){const e=EmmaStore.getEntries().find(x=>x.id===id);if(!e)return;editandoId=id;
   sel={estado:e.mood||'',actividades:[...(e.activities||[])],comidas:[...(e.foods||[])],resultado:e.food_result||''};
-  $('r-date').value=e.date||hoyISO();$('r-gusto').value=(e.liked||[]).join(', ');$('r-palabra').value=(e.newWords||[]).join(', ');$('r-nota').value=e.note||'';$('r-comida-otro').value='';
+  $('r-date').value=e.date||hoyISO();$('r-gusto').value=(e.liked||[]).join(', ');$('r-palabra').value=(e.newWords||[]).join(', ');$('r-nota').value=e.note||'';
+  if($('r-actividades-txt'))$('r-actividades-txt').value=e.actividadesTexto||(e.activities||[]).join(', ');
+  if($('r-comida-txt'))$('r-comida-txt').value=e.comidaTexto||[].concat(e.foods||[],e.fruits||[]).join(', ');
   refrescarChipsRapido();validarRapido();ir('rapido');toast('Editando');}
 function eliminar(id){if(!confirm('¿Eliminar este registro?'))return;EmmaStore.deleteEntry(id);rebuildProfile();renderHistorial();toast('Eliminado');}
 
@@ -1204,8 +1206,8 @@ function renderRecuerdo(){const box=$('recuerdoHoy');if(!box)return;
   const dias=Math.max(1,Math.round((new Date(hoyISO())-new Date(r.date))/86400000));
   const hace=dias>=330?('hace '+Math.max(1,Math.round(dias/365))+' año'+(dias>=660?'s':'')):dias>=28?('hace '+Math.round(dias/30)+' mes'+(dias>=56?'es':'')):('hace '+dias+' día'+(dias>1?'s':''));
   box.innerHTML=`<div class="p-bloque" style="margin-bottom:14px"><div class="pi-meta">✨ Recuerdo · ${fechaCorta(r.date)} · ${hace}</div>
-    <div style="display:flex;gap:12px;align-items:center;margin-top:8px">${r.tipo==='foto'?`<div id="recThumb" style="width:52px;height:52px;flex:none;border-radius:10px;background:var(--acento-suave);display:grid;place-items:center;font-size:20px">📷</div>`:''}<div class="cuerpo" style="flex:1;margin:0">${esc(r.texto)}</div><button class="mini" onclick="verRecuerdo('${r.tipo}','${r.foto?r.foto.id:''}')">Ver</button></div></div>`;
-  if(r.tipo==='foto'&&window.EmmaPhotos&&r.foto&&EmmaPhotos.getThumb)EmmaPhotos.getThumb(r.foto).then(u=>{if(!u)return;const el=$('recThumb');if(el)el.innerHTML='<img src="'+u+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px">';}).catch(()=>{});}
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px">${r.tipo==='foto'?`<div id="recThumb" style="width:56px;height:56px;flex:none;border-radius:10px;overflow:hidden;background:var(--acento-suave);display:grid;place-items:center;font-size:20px">📷</div>`:''}<div class="cuerpo" style="flex:1;margin:0">${esc(r.texto)}</div><button class="mini" onclick="verRecuerdo('${r.tipo}','${r.foto?r.foto.id:''}')">Ver</button></div></div>`;
+  if(r.tipo==='foto'&&window.EmmaPhotos&&r.foto&&EmmaPhotos.getThumb)EmmaPhotos.getThumb(r.foto).then(u=>{if(!u)return;const el=$('recThumb');if(el){el.style.display='block';el.innerHTML='<img src="'+u+'" style="display:block;width:100%;height:100%;object-fit:cover">';}}).catch(()=>{});}
 function verRecuerdo(tipo,id){if(tipo==='foto'&&id&&typeof openSheet==='function')openSheet(id);else if(tipo==='foto')ir('galeria');else if(tipo==='momento')ir('historial');else ir('notas');}
 
 /* ===== Estado / login ===== */
@@ -1283,7 +1285,7 @@ function init(){
   if(window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
   $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
   refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
-  ['r-gusto','r-palabra','r-nota','r-comida-otro'].forEach(id=>$(id).addEventListener('input',()=>{guardarBorrador();if(id==='r-comida-otro')$('campo-resultado').style.display=($(id).value||sel.comidas.filter(x=>x!=='Otro').length)?'block':'none';}));
+  ['r-gusto','r-palabra','r-nota'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',guardarBorrador);});
   $('nt-text').addEventListener('input',()=>$('nt-guardar').disabled=!$('nt-text').value.trim());
   rebuildProfile();
   if(window.EmmaSync){EmmaSync.onStateChange=actualizarEstado;EmmaSync.onSessionExpired=avisarSesionExpirada;manejarRecoveryHash();if(EmmaSync.configured&&!EmmaSync.isSignedIn()&&!_skipLogin())$('loginOverlay').classList.add('show');}
