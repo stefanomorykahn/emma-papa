@@ -339,6 +339,13 @@
     <div id="g-grid"></div>
   </section>
 
+  <!-- ===== TO DO · SALIDAS ===== -->
+  <section class="vista" id="v-todo">
+    <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Salidas · To Do</h2></div>
+    <div class="chips scroll" id="todo-filtros" style="margin-bottom:14px;"></div>
+    <div id="todo-lista"></div>
+  </section>
+
   <!-- ===== NOTAS ===== -->
   <section class="vista" id="v-notas">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Notas de papá</h2></div>
@@ -422,7 +429,7 @@
 
 <nav class="nav">
   <button data-vista="inicio" class="on" onclick="ir('inicio')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>Inicio</button>
-  <button data-vista="rapido" onclick="ir('rapido')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>Registrar</button>
+  <button data-vista="todo" onclick="ir('todo')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l2.5 2.5L16 8"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg></span>To Do</button>
   <button data-vista="perfil" onclick="ir('perfil')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>Perfil</button>
   <button data-vista="gastos" onclick="ir('gastos')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1"/></svg></span>Gastos</button>
   <button data-vista="ajustes" onclick="ir('ajustes')"><span class="ni"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="7" cy="17" r="2"/></svg></span>Ajustes</button>
@@ -499,7 +506,7 @@ function ir(v){document.querySelectorAll('.vista').forEach(x=>x.classList.remove
   if(v==='rapido'){fotoTarget='r-fotos';fotoInputId='r-foto-input';}
   if(v==='comidas'){fotoTarget='c-fotos';fotoInputId='c-foto-input';fotosPendientes=[];}
   if(v==='inicio')renderInicio();if(v==='rapido')refrescarChipsRapido();if(v==='historial')renderHistorial();
-  if(v==='perfil')renderPerfil();if(v==='notas')renderNotas();if(v==='ajustes')renderAjustes();if(v==='ideas')initIdeas();if(v==='comidas')initComidas();if(v==='galeria')renderGaleria();if(v==='gastos')initGastos();}
+  if(v==='perfil')renderPerfil();if(v==='notas')renderNotas();if(v==='ajustes')renderAjustes();if(v==='ideas')initIdeas();if(v==='comidas')initComidas();if(v==='galeria')renderGaleria();if(v==='gastos')initGastos();if(v==='todo')renderTodo();}
 
 /* ===== Registro rápido ===== */
 let sel={estado:'',actividades:[],comidas:[],resultado:''};let editandoId=null;
@@ -588,6 +595,51 @@ function parseMonto(v){if(!v)return 0;const n=parseFloat(String(v).replace(',','
 function moneda(n){return 'S/ '+(Number(n)||0).toFixed(2);}
 function gastoMes(mes){mes=mes||hoyISO().slice(0,7);return EmmaStore.getExpenses().filter(e=>(e.date||'').slice(0,7)===mes).reduce((s,e)=>s+(Number(e.amount)||0),0);}
 function initGastos(){ renderGastos(); } // la vista Gastos es solo lectura/analítica; el registro está en "Registrar momento"
+
+/* ===== To Do · Salidas en Lima (checklist) ===== */
+let todoFiltro='todas';
+const TODO_FILTROS=[['todas','Todas'],['animales','Animales'],['agua','Agua'],['techado','Techado'],['parque','Parques']];
+// Un item está "realizado" si alguna entrada tiene ese título como actividad/lugar/gusto (derivado → sincroniza solo).
+function todoRealizada(item){
+  const t=normTxt(item.title); let fecha=null;
+  (EmmaStore.getEntries()||[]).forEach(e=>{ if(e.deleted)return;
+    const campos=[].concat(e.activities||[],e.places||[],e.liked||[]);
+    if(campos.some(x=>normTxt(x)===t)){ if(!fecha||(e.date||'')>fecha)fecha=e.date; }
+  });
+  return fecha;
+}
+function comoLlegar(id){const it=(window.EmmaBank&&EmmaBank.LIMA_TODO||[]).find(x=>x.id===id);if(!it)return;
+  window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(it.dir),'_blank','noopener');}
+function marcarTodo(id){
+  const it=(window.EmmaBank&&EmmaBank.LIMA_TODO||[]).find(x=>x.id===id); if(!it)return;
+  EmmaStore.saveEntry({date:hoyISO(),mood:'',activities:[it.title],places:[it.zona],liked:[it.title],
+    note:'Salida: '+it.title,foods:[],fruits:[],food_result:'',newWords:[],calmingThings:[],frustrations:[],people:[]});
+  rebuildProfile(); toast('¡Anotado! 🎉'); renderTodo();
+}
+function setTodoFiltro(k){todoFiltro=k;renderTodo();}
+function renderTodo(){
+  const cont=$('todo-lista'); if(!cont)return;
+  $('todo-filtros').innerHTML=TODO_FILTROS.map(([k,l])=>`<button class="chip${k===todoFiltro?' on':''}" onclick="setTodoFiltro('${k}')">${esc(l)}</button>`).join('');
+  let items=(window.EmmaBank&&EmmaBank.LIMA_TODO?EmmaBank.LIMA_TODO:[]).slice();
+  if(todoFiltro!=='todas')items=items.filter(it=>(it.tags||[]).includes(todoFiltro));
+  items=items.map(it=>({it,fecha:todoRealizada(it)}));
+  items.sort((a,b)=>(a.fecha?1:0)-(b.fecha?1:0)); // no realizadas primero
+  if(!items.length){cont.innerHTML='<p class="p-vacio">No hay salidas en este filtro.</p>';return;}
+  cont.innerHTML=items.map(({it,fecha})=>`<div class="p-bloque" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <b style="font-size:16px;line-height:1.25">${esc(it.title)}</b>
+      <span class="estado e-neu" style="flex:0 0 auto">${esc(it.zona)}</span></div>
+    ${fecha?`<div style="margin-top:7px"><span class="estado e-pos">✓ Realizada · ${fechaCorta(fecha)}</span></div>`:''}
+    <div style="margin-top:9px"><span class="pi-label">Qué hacer:</span> ${esc(it.hacer)}</div>
+    <div style="margin-top:7px"><span class="pi-label">Dirección:</span> ${esc(it.dir)}
+      <button class="mini" style="margin-left:6px;margin-top:4px" onclick="comoLlegar('${it.id}')">📍 Cómo llegar</button></div>
+    <div class="pi-meta" style="margin-top:7px">🕒 ${esc(it.horario)} · 💵 ${esc(it.precio)}</div>
+    <div class="pi-meta" style="margin-top:4px;font-style:italic">💡 ${esc(it.tip)}</div>
+    <div style="margin-top:11px">${fecha
+      ?`<button class="mini" onclick="marcarTodo('${it.id}')">↻ Hacer de nuevo</button>`
+      :`<button class="guardar" style="max-width:230px" onclick="marcarTodo('${it.id}')">Marcar como realizada</button>`}</div>
+  </div>`).join('');
+}
 function pickGastoFoto(){
   if(window.EmmaPhotos&&EmmaPhotos.driveEnabled()){$('x-foto-input').click();}
   else pegarEnlaceGastoFoto();

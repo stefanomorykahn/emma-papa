@@ -141,6 +141,23 @@ const EmmaBank = (function () {
     }));
   }
 
-  return { BANK, recommend };
+  // Salidas / paseos en Lima para Emma (checklist "To Do").
+  // NOTA: confirmar horarios/precios antes de ir (pueden variar).
+  const LIMA_TODO = [
+    {id:'leyendas', title:'Parque de las Leyendas', zona:'San Miguel', dir:'Av. Parque de las Leyendas 580, San Miguel', horario:'Lun–Dom 9:00–17:00', precio:'General S/18 · Niños 3–12 S/10 · menores de 3 gratis', hacer:'Ver animales (lobos marinos, pingüinos, aves), acuario, zonas arqueológicas y jardines. Caminar.', tip:'Ir temprano; agua, gorro y coche.', tags:['animales','zoológico','acuario']},
+    {id:'huachipa', title:'Zoológico de Huachipa', zona:'Ate', dir:'Av. Las Torres s/n, Ate', horario:'Lun–Dom 9:00–17:30 (365 días)', precio:'Ver zoohuachipa.com.pe', hacer:'Gran variedad de animales, aves y mariposario.', tip:'Mucha caminata; usa coche y protector solar.', tags:['animales','zoológico']},
+    {id:'nautilus', title:'Acuario Nautilus', zona:'Comas', dir:'Av. Universitaria cdra. 99 (ex fundo Chacra Cerro), Comas', horario:'Lun–Dom 10:00–17:00', precio:'S/24 · menores de 5 gratis', hacer:'Peces tropicales, tiburones y corales de cerca. Techado (bueno con garúa).', tip:'Queda en Lima Norte; considera la distancia.', tags:['acuario','animales','techado']},
+    {id:'granjavilla', title:'Granja Villa', zona:'Chorrillos', dir:'Av. Alameda del Premio Real 397, Chorrillos', horario:'Todos los días 10:00–18:00', precio:'S/85 (juegos, granja, aves, dinosaurios, zona acuática)', hacer:'Interactuar con animales de granja, juegos mecánicos, dinos y agua.', tip:'No forzar contacto con animales; lleva muda.', tags:['granja','animales','juegos']},
+    {id:'circuitoagua', title:'Circuito Mágico del Agua', zona:'Cercado de Lima', dir:'Jr. Madre de Dios s/n, Parque de la Reserva, Cercado de Lima', horario:'Lun–Dom 15:00–22:00 (shows 19:15/20:15/21:10)', precio:'S/5 · menores de 5 gratis', hacer:'Fuentes interactivas para correr y mojarse; le gusta el agua.', tip:'Ir temprano; muda/toalla; supervisión total con el agua.', tags:['agua','parque']},
+    {id:'openangamos', title:'Zona de juegos Open Plaza Angamos (Coney Park / City Toys)', zona:'Surquillo', dir:'Av. Angamos Este 1803 / Av. Tomás Marsano, Surquillo', horario:'Lun–Dom 9:00–22:00 (mall)', precio:'Por juego / tarjeta', hacer:'Juegos techados para niños; motricidad y energía. (Lo que llaman "Mundo Kids").', tip:'Vigilancia cercana; medias antideslizantes.', tags:['juego','techado','motricidad']},
+    {id:'muralla', title:'Mini granja · Parque de la Muralla', zona:'Cercado de Lima', dir:'Jr. Ancash cdra. 3, junto al río Rímac, Cercado de Lima', horario:'Mar–Dom (de día) · confirmar', precio:'Ingreso libre / bajo', hacer:'Mini granja (conejos, patos) y espacio para caminar.', tip:'Corta y céntrica; buena primera salida a animales.', tags:['granja','animales','parque']},
+    {id:'olivar', title:'Parque El Olivar', zona:'San Isidro', dir:'Calle La República / Av. Prescott, San Isidro', horario:'Abierto de día · ingreso libre', precio:'Gratis', hacer:'Sombra, patos y ardillas; caminar tranquilo.', tip:'Tranquilo y verde; salida corta.', tags:['parque','naturaleza']},
+    {id:'kennedy', title:'Parque Kennedy', zona:'Miraflores', dir:'Av. Larco / Diagonal, Miraflores', horario:'Abierto de día · ingreso libre', precio:'Gratis', hacer:'Gatitos, palomas y espacio para correr; heladerías cerca.', tip:'Cuidado con el tráfico alrededor.', tags:['parque']},
+    {id:'malecon', title:'Malecón de Miraflores', zona:'Miraflores', dir:'Malecón de la Reserva, Miraflores', horario:'Abierto · ingreso libre', precio:'Gratis', hacer:'Caminar viendo el mar, áreas verdes y juegos.', tip:'Lleva abrigo (viento del mar).', tags:['paseo','mar']},
+    {id:'museoninos', title:'Museo de los Niños (interactivo)', zona:'Lima · confirmar sede', dir:'Confirmar en web', horario:'Confirmar horario', precio:'Confirmar', hacer:'Zonas sensoriales de ciencia y arte para explorar; techado.', tip:'Bueno para invierno/garúa. Busca zonas para pequeños.', tags:['museo','sensorial','techado']},
+    {id:'playa', title:'Playa (Costa Verde)', zona:'Lima', dir:'Circuito de Playas Costa Verde', horario:'De día · temporada de verano', precio:'Gratis', hacer:'Arena y agua para explorar (sensorial).', tip:'Supervisión total; sombra y protector solar.', tags:['agua','playa']}
+  ];
+
+  return { BANK, LIMA_TODO, recommend };
 })();
 if (typeof window !== 'undefined') window.EmmaBank = EmmaBank;
