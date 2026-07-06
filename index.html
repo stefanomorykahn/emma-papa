@@ -86,14 +86,14 @@
   .hero .ico{width:48px;height:48px;flex:0 0 48px;border-radius:14px;background:rgba(255,255,255,.18);display:grid;place-items:center;color:#fff;}
   .hero .t{font-size:18px;font-weight:600;} .hero .s{font-size:13px;opacity:.9;}
 
-  .fila2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp3);margin-bottom:var(--sp4);}
+  .fila2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp3);margin-bottom:var(--sp3);}
   .card-sec{display:flex;flex-direction:column;gap:var(--sp2);background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);
-    border-radius:var(--r-card);padding:14px;cursor:pointer;transition:transform .1s;min-height:100px;justify-content:space-between;}
+    border-radius:var(--r-card);padding:13px;cursor:pointer;transition:transform .1s;min-height:90px;justify-content:space-between;}
   .card-sec:active{transform:scale(.98);}
   .card-sec .ico{width:38px;height:38px;border-radius:11px;background:var(--acento-suave);display:grid;place-items:center;color:var(--acento);}
   .card-sec .t{font-size:15px;font-weight:600;} .card-sec .s{font-size:12px;color:var(--suave);}
 
-  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp2);margin-bottom:var(--sp4);}
+  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp2);margin-bottom:var(--sp3);}
   .stat{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:10px 8px;text-align:center;}
   .stat .n{font-size:18px;font-weight:700;} .stat .l{font-size:11px;color:var(--suave);margin-top:1px;}
 
@@ -127,6 +127,10 @@
 
   .guardar{width:100%;background:var(--acento);color:#fff;border:none;border-radius:16px;padding:16px;font-size:17px;font-weight:600;cursor:pointer;margin-top:4px;transition:opacity .2s,transform .1s;}
   .guardar:active{transform:scale(.99);} .guardar:disabled{opacity:.45;cursor:not-allowed;}
+  /* Guardar siempre a la mano en formularios largos: barra de acción fija sobre el nav (respeta safe-area).
+     Solo se ve cuando su vista está activa (la vista inactiva es display:none). */
+  .guardar.sticky-save{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 82px);width:min(528px,calc(100% - 32px));z-index:45;box-shadow:0 8px 24px rgba(0,0,0,.22);}
+  #v-rapido,#v-comidas{padding-bottom:92px;}
 
   .buscar{margin-bottom:14px;}
   .entrada{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
@@ -245,7 +249,7 @@
 
     <button class="hero" onclick="ir('rapido')">
       <span class="ico"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>
-      <span><span class="t">Registrar momento</span><br><span class="s">Estado, actividad y nota</span></span>
+      <span><span class="t">Registrar momento</span><br><span class="s">Cómo estuvo y qué pasó hoy</span></span>
     </button>
     <div class="fila2">
       <button class="card-sec" onclick="ir('ideas')"><span class="ico"><svg class="ic" viewBox="0 0 24 24"><path d="M9.5 18h5"/><path d="M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.8 10.7c.6.5.8 1 .8 1.8v.4h6v-.4c0-.8.2-1.3.8-1.8A6 6 0 0 0 12 3z"/></svg></span><span><span class="t">¿Qué hacemos hoy?</span><br><span class="s">Ideas según Emma</span></span></button>
@@ -295,7 +299,7 @@
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
       <input type="file" id="r-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
-    <button class="guardar" id="r-guardar" onclick="guardarRapido()" disabled>Guardar</button>
+    <button class="guardar sticky-save" id="r-guardar" onclick="guardarRapido()" disabled>Guardar momento</button>
   </section>
 
   <!-- ===== IDEAS ===== -->
@@ -325,7 +329,7 @@
       <button type="button" class="mini" onclick="pickFoto()">＋ Agregar foto</button>
       <input type="file" id="c-foto-input" accept="image/*" multiple style="display:none" onchange="onFotoPick(event)" />
     </div>
-    <button class="guardar" onclick="guardarComida()">Guardar comida</button>
+    <button class="guardar sticky-save" onclick="guardarComida()">Guardar comida</button>
   </section>
 
   <!-- ===== GASTOS ===== -->
