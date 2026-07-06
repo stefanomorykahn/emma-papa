@@ -130,9 +130,11 @@
   .guardar{width:100%;background:var(--acento);color:#fff;border:none;border-radius:16px;padding:16px;font-size:17px;font-weight:600;cursor:pointer;margin-top:4px;transition:opacity .2s,transform .1s;}
   .guardar:active{transform:scale(.99);} .guardar:disabled{opacity:.45;cursor:not-allowed;}
   /* Guardar siempre a la mano en formularios largos: barra de acción fija sobre el nav (respeta safe-area).
-     Solo se ve cuando su vista está activa (la vista inactiva es display:none). */
-  .guardar.sticky-save{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 82px);width:min(528px,calc(100% - 32px));z-index:45;box-shadow:0 8px 24px rgba(0,0,0,.22);}
-  #v-rapido,#v-comidas{padding-bottom:92px;}
+     Solo se ve cuando su vista está activa (la vista inactiva es display:none). La banda ::before
+     (color de fondo) hace que el contenido pase por debajo limpio, sin parecer que flota sobre texto. */
+  .guardar.sticky-save{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-bottom) + 70px);width:min(528px,calc(100% - 32px));z-index:45;box-shadow:0 6px 18px rgba(0,0,0,.18);}
+  .guardar.sticky-save::before{content:'';position:absolute;left:-60px;right:-60px;top:-18px;bottom:-72px;background:linear-gradient(to top,var(--crema) 82%,transparent);z-index:-1;pointer-events:none;}
+  #v-rapido,#v-comidas{padding-bottom:104px;}
 
   .buscar{margin-bottom:14px;}
   .entrada{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
