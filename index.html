@@ -362,6 +362,8 @@
   <!-- ===== TO DO · SALIDAS ===== -->
   <section class="vista" id="v-todo">
     <div class="cabecera-vista"><button class="volver" onclick="ir('inicio')">←</button><h2>Salidas · To Do</h2></div>
+    <button class="btn-full" onclick="abrirTodoForm()" style="margin-bottom:14px"><span class="ico">＋</span> Agregar actividad</button>
+    <div id="todo-custom"></div>
     <div class="chips scroll" id="todo-filtros" style="margin-bottom:14px;"></div>
     <div id="todo-lista"></div>
   </section>
@@ -415,6 +417,11 @@
     <div class="grupo-btns"><h3>Categorías de gastos</h3>
       <div id="gastoCatsBox" class="chips" style="margin-bottom:8px"></div>
       <div style="display:flex;gap:8px"><input type="text" id="nuevaCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoria();}" /><button class="mini" onclick="agregarCategoria()">＋ Agregar</button></div>
+    </div>
+
+    <div class="grupo-btns"><h3>Categorías de To Do</h3>
+      <div id="todoCatsBox" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px"><input type="text" id="nuevaTodoCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTodoCat();}" /><button class="mini" onclick="agregarTodoCat()">＋ Agregar</button></div>
     </div>
 
     <div class="grupo-btns"><h3>Apariencia</h3>
@@ -509,6 +516,18 @@
     <p class="pi-meta" style="margin:2px 0 12px">Déjalo así para incluir todo el historial.</p>
     <button class="guardar" id="rep-generar" onclick="generarReporte()">Generar reporte</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('reportOverlay').classList.remove('show');return false;">Cancelar</a></p>
+  </div>
+</div>
+
+<div class="login-overlay" id="todoOverlay">
+  <div class="login-card"><div class="login-logo">📝</div><h2 id="todo-form-titulo">Nueva actividad</h2>
+    <div class="campo" style="text-align:left"><label>Nombre</label><input type="text" id="td-nombre" placeholder="Ej. Parque de la Amistad" /></div>
+    <div class="campo" style="text-align:left"><label>Categoría</label><select class="sel-emma" id="td-categoria"></select></div>
+    <div class="campo" style="text-align:left"><label>Dirección <span class="op">(opcional)</span></label><input type="text" id="td-direccion" placeholder="Ej. Av. Caminos del Inca, Surco" /></div>
+    <div class="campo" style="text-align:left"><label>Horarios <span class="op">(opcional)</span></label><input type="text" id="td-horarios" placeholder="Ej. Lun–Dom 9:00–18:00" /></div>
+    <div class="campo" style="text-align:left"><label>Notas / ¿qué se puede hacer? <span class="op">(opcional)</span></label><textarea id="td-notas" placeholder="Juegos, áreas verdes, qué llevar…"></textarea></div>
+    <button class="guardar" id="td-guardar" onclick="guardarTodoItem()">Guardar actividad</button>
+    <p class="login-nota"><a href="#" onclick="document.getElementById('todoOverlay').classList.remove('show');return false;">Cancelar</a></p>
   </div>
 </div>
 
@@ -660,6 +679,69 @@ function marcarTodo(id){
   rebuildProfile(); toast('¡Anotado! 🎉'); renderTodo();
 }
 function setTodoFiltro(k){todoFiltro=k;renderTodo();}
+
+/* ===== To Do · categorías editables (Ajustes) ===== */
+const TODO_CATS_DEFAULT=['Parques','Museos y cultura','Animales y naturaleza','Juegos indoor','Agua','Paseos'];
+function getTodoCats(){try{const a=JSON.parse(localStorage.getItem('emma_todo_categories'));return(Array.isArray(a)&&a.length)?a.slice():TODO_CATS_DEFAULT.slice();}catch(e){return TODO_CATS_DEFAULT.slice();}}
+function setTodoCats(a){localStorage.setItem('emma_todo_categories',JSON.stringify(a));}
+function addTodoCat(nombre){nombre=(nombre||'').trim();if(!nombre)return false;const a=getTodoCats();if(a.some(c=>c.toLowerCase()===nombre.toLowerCase()))return false;a.push(nombre);setTodoCats(a);return true;}
+function renameTodoCat(i,nuevo){nuevo=(nuevo||'').trim();const a=getTodoCats();if(i<0||i>=a.length||!nuevo)return false;if(a.some((c,j)=>j!==i&&c.toLowerCase()===nuevo.toLowerCase()))return false;const viejo=a[i];a[i]=nuevo;setTodoCats(a);
+  (EmmaStore.getTodoItems()||[]).forEach(t=>{if((t.category||'')===viejo)EmmaStore.updateTodoItem(t.id,{category:nuevo});});return true;}
+function moveTodoCat(i,dir){const a=getTodoCats();const j=i+dir;if(i<0||i>=a.length||j<0||j>=a.length)return;const t=a[i];a[i]=a[j];a[j]=t;setTodoCats(a);}
+function removeTodoCat(i){const a=getTodoCats();const nombre=a[i];if(nombre==null)return;a.splice(i,1);setTodoCats(a);
+  (EmmaStore.getTodoItems()||[]).forEach(t=>{if((t.category||'')===nombre)EmmaStore.updateTodoItem(t.id,{category:''});});}
+
+/* ===== To Do · formulario de actividad manual ===== */
+let editandoTodoId=null;
+function todoCatOptions(selCat){const cats=getTodoCats();let html=cats.map(c=>`<option value="${esc(c)}"${c===selCat?' selected':''}>${esc(c)}</option>`).join('');
+  if(selCat&&!cats.includes(selCat))html+=`<option value="${esc(selCat)}" selected>${esc(selCat)}</option>`;
+  return html;}
+function abrirTodoForm(){editandoTodoId=null;$('todo-form-titulo').textContent='Nueva actividad';
+  const cats=getTodoCats();$('td-categoria').innerHTML=todoCatOptions(cats[0]||'');
+  $('td-nombre').value='';$('td-direccion').value='';$('td-horarios').value='';$('td-notas').value='';
+  $('todoOverlay').classList.add('show');setTimeout(()=>{try{$('td-nombre').focus();}catch(e){}},60);}
+function editarTodo(id){const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id===id);if(!it)return;editandoTodoId=id;
+  $('todo-form-titulo').textContent='Editar actividad';
+  $('td-categoria').innerHTML=todoCatOptions(it.category||'');
+  $('td-nombre').value=it.name||'';$('td-direccion').value=it.address||'';$('td-horarios').value=it.hours||'';$('td-notas').value=it.notes||'';
+  $('todoOverlay').classList.add('show');}
+function guardarTodoItem(){
+  const name=($('td-nombre').value||'').trim();
+  if(!name){toast('Ponle un nombre a la actividad');try{$('td-nombre').focus();}catch(e){}return;}
+  const data={name,category:$('td-categoria').value||'',address:($('td-direccion').value||'').trim(),hours:($('td-horarios').value||'').trim(),notes:($('td-notas').value||'').trim()};
+  if(editandoTodoId){EmmaStore.updateTodoItem(editandoTodoId,data);toast('Actividad actualizada ✓');}
+  else{EmmaStore.saveTodoItem(data);toast('Actividad agregada 🎉');}
+  editandoTodoId=null;$('todoOverlay').classList.remove('show');renderTodo();}
+function eliminarTodo(id){const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id===id);if(!it)return;
+  if(!confirm('¿Eliminar "'+(it.name||'esta actividad')+'"? No se puede deshacer.'))return;
+  EmmaStore.deleteTodoItem(id);renderTodo();toast('Eliminada');}
+function comoLlegarTodo(id){const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id===id);if(!it||!it.address)return;
+  window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(it.address),'_blank','noopener');}
+function todoCustomCard(it){const dir=(it.address||'').trim();
+  return `<div class="p-bloque" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <b style="font-size:16px;line-height:1.25">${esc(it.name)}</b>
+      <span class="estado e-neu" style="flex:0 0 auto">Mía</span></div>
+    ${dir?`<div style="margin-top:9px"><span class="pi-label">Dirección:</span> ${esc(dir)}
+      <button class="mini" style="margin-left:6px;margin-top:4px" onclick="comoLlegarTodo('${it.id}')">📍 Cómo llegar</button></div>`:''}
+    ${(it.hours||'').trim()?`<div class="pi-meta" style="margin-top:7px">🕒 ${esc(it.hours)}</div>`:''}
+    ${(it.notes||'').trim()?`<div style="margin-top:7px">${esc(it.notes)}</div>`:''}
+    <div style="margin-top:11px;display:flex;gap:8px">
+      <button class="mini" onclick="editarTodo('${it.id}')">✏️ Editar</button>
+      <button class="mini del" onclick="eliminarTodo('${it.id}')">Eliminar</button></div>
+  </div>`;}
+function renderTodoCustom(){const cont=$('todo-custom');if(!cont)return;
+  const items=EmmaStore.getTodoItems()||[];
+  if(!items.length){cont.innerHTML='';return;}
+  const cats=getTodoCats();
+  const grupos={};items.forEach(it=>{let c=(it.category||'').trim();if(!c||!cats.includes(c))c='Sin categoría';(grupos[c]=grupos[c]||[]).push(it);});
+  const claves=cats.filter(c=>grupos[c]&&grupos[c].length);
+  if(grupos['Sin categoría'])claves.push('Sin categoría');
+  let html='<div class="p-sub">Mis actividades</div>';
+  claves.forEach(c=>{const arr=grupos[c].slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    html+=`<div style="font-weight:700;font-size:14.5px;margin:12px 0 7px">${esc(c)}</div>`+arr.map(todoCustomCard).join('');});
+  cont.innerHTML=html;}
+
 function todoCard({it,fecha}){return `<div class="p-bloque" style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <b style="font-size:16px;line-height:1.25">${esc(it.title)}</b>
@@ -675,17 +757,18 @@ function todoCard({it,fecha}){return `<div class="p-bloque" style="margin-bottom
       :`<button class="mini" style="background:var(--acento);color:#fff;border-color:var(--acento)" onclick="marcarTodo('${it.id}')">✓ Marcar como realizada</button>`}</div>
   </div>`;}
 function renderTodo(){
+  renderTodoCustom();
   const cont=$('todo-lista'); if(!cont)return;
   $('todo-filtros').innerHTML=TODO_FILTROS.map(([k,l])=>`<button class="chip${k===todoFiltro?' on':''}" onclick="setTodoFiltro('${k}')">${esc(l)}</button>`).join('');
   let items=(window.EmmaBank&&EmmaBank.LIMA_TODO?EmmaBank.LIMA_TODO:[]).slice();
   if(todoFiltro!=='todas')items=items.filter(it=>(it.tags||[]).includes(todoFiltro));
   const conFecha=items.map(it=>({it,fecha:todoRealizada(it)}));
-  if(!conFecha.length){cont.innerHTML='<p class="p-vacio">No hay salidas en este filtro.</p>';return;}
+  if(!conFecha.length){cont.innerHTML='<div class="p-sub">Salidas sugeridas en Lima</div><p class="p-vacio">No hay salidas en este filtro.</p>';return;}
   const pendientes=conFecha.filter(x=>!x.fecha);
   const realizadas=conFecha.filter(x=>x.fecha).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')); // más recientes primero
-  let html='';
-  if(pendientes.length)html+='<div class="p-sub">Por hacer</div>'+pendientes.map(todoCard).join('');
-  if(realizadas.length)html+='<div class="p-sub">Realizadas ('+realizadas.length+')</div>'+realizadas.map(todoCard).join('');
+  let html='<div class="p-sub">Salidas sugeridas en Lima</div>';
+  if(pendientes.length)html+='<div class="p-sub" style="opacity:.85">Por hacer</div>'+pendientes.map(todoCard).join('');
+  if(realizadas.length)html+='<div class="p-sub" style="opacity:.85">Realizadas ('+realizadas.length+')</div>'+realizadas.map(todoCard).join('');
   cont.innerHTML=html;
 }
 function pickGastoFoto(){
@@ -739,6 +822,24 @@ function renderCategorias(){const c=$('gastoCatsBox');if(!c)return;const cats=ge
   c.innerHTML=cats.length?cats.map((cat,i)=>`<span class="chip">${esc(cat)}<button onclick="eliminarCategoria(${i})" title="Quitar" style="margin-left:6px;border:none;background:none;color:var(--suave);cursor:pointer;font-size:15px;line-height:1;padding:0">×</button></span>`).join(''):'<span class="pi-meta">Sin categorías.</span>';}
 function agregarCategoria(){const inp=$('nuevaCatInput');if(addGastoCat(inp.value)){inp.value='';renderCategorias();toast('Categoría agregada ✓');}else toast('Ya existe o está vacía');}
 function eliminarCategoria(i){const cats=getGastoCats();const nombre=cats[i];if(nombre==null)return;if(!confirm('¿Quitar la categoría "'+nombre+'"?'))return;removeGastoCat(i);renderCategorias();}
+
+/* ===== Ajustes · categorías de To Do (agregar / renombrar / reordenar / eliminar) ===== */
+function renderTodoCategorias(){const c=$('todoCatsBox');if(!c)return;const cats=getTodoCats();
+  if(!cats.length){c.innerHTML='<span class="pi-meta">Sin categorías. Agrega una abajo.</span>';return;}
+  c.innerHTML=cats.map((cat,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:7px 0;${i<cats.length-1?'border-bottom:1px solid var(--linea);':''}">
+    <span style="flex:1;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(cat)}</span>
+    <button class="mini" style="min-height:38px;padding:0 11px" onclick="moverTodoCat(${i},-1)" title="Subir"${i===0?' disabled':''}>↑</button>
+    <button class="mini" style="min-height:38px;padding:0 11px" onclick="moverTodoCat(${i},1)" title="Bajar"${i===cats.length-1?' disabled':''}>↓</button>
+    <button class="mini" style="min-height:38px;padding:0 11px" onclick="renombrarTodoCat(${i})" title="Renombrar">✏️</button>
+    <button class="mini del" style="min-height:38px;padding:0 11px" onclick="eliminarTodoCat(${i})" title="Eliminar">×</button>
+  </div>`).join('');}
+function agregarTodoCat(){const inp=$('nuevaTodoCatInput');if(addTodoCat(inp.value)){inp.value='';renderTodoCategorias();toast('Categoría agregada ✓');}else toast('Ya existe o está vacía');}
+function renombrarTodoCat(i){const cats=getTodoCats();const actual=cats[i];if(actual==null)return;const nuevo=prompt('Renombrar categoría:',actual);if(nuevo==null)return;if(renameTodoCat(i,nuevo)){renderTodoCategorias();toast('Renombrada ✓');}else toast('Nombre inválido o repetido');}
+function moverTodoCat(i,dir){moveTodoCat(i,dir);renderTodoCategorias();}
+function eliminarTodoCat(i){const cats=getTodoCats();const nombre=cats[i];if(nombre==null)return;
+  const n=(EmmaStore.getTodoItems()||[]).filter(t=>(t.category||'')===nombre).length;
+  const msg=n?('¿Eliminar la categoría "'+nombre+'"? Sus '+n+' actividad'+(n>1?'es':'')+' pasarán a "Sin categoría".'):('¿Eliminar la categoría "'+nombre+'"?');
+  if(!confirm(msg))return;removeTodoCat(i);renderTodoCategorias();toast('Categoría eliminada');}
 let gastoPeriodo='mes';
 const PERIODOS=[['mes','Este mes'],['anterior','Mes pasado'],['anio','Este año'],['todo','Todo'],['rango','Rango…']];
 function setGastoPeriodo(k){gastoPeriodo=k;$('x-rango').style.display=(k==='rango')?'flex':'none';
@@ -1131,7 +1232,7 @@ function actualizarPerfil(btnId){
 
 /* ===== Ajustes / backup ===== */
 function descargar(c,n,t){const b=new Blob([c],{type:t});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
-function backupCompleto(){return{app:'Emma & Papá',version:4,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),exportadoEl:new Date().toISOString()};}
+function backupCompleto(){return{app:'Emma & Papá',version:5,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),emmaTodoItems:EmmaStore.getTodoItems(),emmaTodoCategories:getTodoCats(),exportadoEl:new Date().toISOString()};}
 function exportarBackup(){descargar(JSON.stringify(backupCompleto(),null,2),'emma-backup-'+hoyISO()+'.json','application/json');EmmaStore.setMeta({lastBackup:new Date().toISOString()});renderAjustes();toast('Backup exportado 📁');}
 function exportarMarkdown(){descargar(EmmaNotes.exportMarkdown()+'\n'+resumenPerfilTexto(),'emma-'+hoyISO()+'.md','text/markdown');toast('Markdown descargado');}
 
@@ -1248,11 +1349,11 @@ function copiarNotasClaude(){copiar(EmmaNotes.copyForClaude(),'Notas copiadas �
 function copiarResumenDia(){const hoy=hoyISO();const d=EmmaStore.getEntries().filter(e=>e.date===hoy);if(!d.length){toast('No hay registros de hoy');return;}
   let t='Emma · '+fechaLarga(hoy)+'\n';d.forEach(e=>{const p=[];if(e.mood)p.push('Estado: '+e.mood);if((e.activities||[]).length)p.push('Hicimos: '+e.activities.join(', '));if((e.liked||[]).length)p.push('Le gustó: '+e.liked.join(', '));if((e.foods||[]).length)p.push('Comida: '+e.foods.join(', ')+(e.food_result?' ('+e.food_result+')':''));if((e.newWords||[]).length)p.push('Palabra: '+e.newWords.join(', '));if(e.note)p.push('Nota: '+e.note);t+='• '+p.join(' · ')+'\n';});copiar(t,'Resumen del día copiado 📋');}
 function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;
-  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);
+  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);if(d.emmaTodoItems)EmmaStore._setTodoItemsRaw(d.emmaTodoItems);if(Array.isArray(d.emmaTodoCategories)&&d.emmaTodoCategories.length)setTodoCats(d.emmaTodoCategories);
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
-function renderAjustes(){renderCategorias();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+function renderAjustes(){renderCategorias();renderTodoCategorias();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}

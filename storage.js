@@ -187,6 +187,30 @@ const EmmaStore = (function () {
   function setExpTombstones(o) { _write(KEY_EXP_DEL, o || {}); }
   function _setExpensesRaw(arr) { _write(KEY_EXP, arr || []); }
 
+  /* ---------- To Do · actividades manuales (salidas) ---------- */
+  const KEY_TODO = 'emma_todo_custom';
+  const KEY_TODO_DEL = 'emma_todo_customDeleted';
+  function getTodoItems() { return _read(KEY_TODO, []); }
+  function saveTodoItem(t) {
+    const arr = getTodoItems(); const now = new Date().toISOString();
+    t.id = t.id || _uuid(); t.createdAt = t.createdAt || now; t.updatedAt = now;
+    arr.push(t); _write(KEY_TODO, arr); _notify(); return t;
+  }
+  function updateTodoItem(id, patch) {
+    const arr = getTodoItems(); const i = arr.findIndex(x => x.id === id);
+    if (i < 0) return null;
+    arr[i] = { ...arr[i], ...patch, id, updatedAt: new Date().toISOString() };
+    _write(KEY_TODO, arr); _notify(); return arr[i];
+  }
+  function deleteTodoItem(id) {
+    _write(KEY_TODO, getTodoItems().filter(x => x.id !== id));
+    const t = getTodoTombstones(); t[id] = new Date().toISOString(); _write(KEY_TODO_DEL, t);
+    _notify();
+  }
+  function getTodoTombstones() { return _read(KEY_TODO_DEL, {}); }
+  function setTodoTombstones(o) { _write(KEY_TODO_DEL, o || {}); }
+  function _setTodoItemsRaw(arr) { _write(KEY_TODO, arr || []); }
+
   /* ---------- Helpers de sincronización (usados por supabase-sync.js) ---------- */
   function getTombstones() { return _read(KEY_DELETED, {}); }
   function setTombstones(obj) { _write(KEY_DELETED, obj || {}); }
@@ -241,6 +265,8 @@ const EmmaStore = (function () {
     localStorage.removeItem(KEY_PH_DEL);
     localStorage.removeItem(KEY_EXP);
     localStorage.removeItem(KEY_EXP_DEL);
+    localStorage.removeItem(KEY_TODO);
+    localStorage.removeItem(KEY_TODO_DEL);
     localStorage.removeItem('emmaSeeded');
   }
 
@@ -402,6 +428,8 @@ const EmmaStore = (function () {
     getPhotos, savePhoto, updatePhoto, deletePhoto, getPhTombstones, setPhTombstones, _setPhotosRaw,
     // gastos (S/)
     getExpenses, saveExpense, updateExpense, deleteExpense, getExpTombstones, setExpTombstones, _setExpensesRaw,
+    // To Do · actividades manuales
+    getTodoItems, saveTodoItem, updateTodoItem, deleteTodoItem, getTodoTombstones, setTodoTombstones, _setTodoItemsRaw,
     // helpers de sync
     getTombstones, setTombstones, _setEntriesRaw, _setNotesRaw,
     getPiTombstones, setPiTombstones, _setProfileItemsRaw, uuid,

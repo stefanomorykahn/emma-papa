@@ -119,7 +119,15 @@
       if (busy) return;
       busy = true; _setState('syncing');
       try {
-        for (const t of TABLES) await syncTable(t);
+        for (const t of TABLES) {
+          try { await syncTable(t); }
+          catch (e) {
+            // Una tabla OPCIONAL (ej. emma_todo_items aún no creada) no debe romper el
+            // resto de la sincronización. Si su tabla no existe (404/PGRST), se ignora.
+            if (t.optional) { console.warn('[EmmaSync] tabla opcional omitida', t.path, e && e.message); continue; }
+            throw e;
+          }
+        }
         if (window.EmmaProfile) EmmaProfile.rebuildProfileFromEntries();
         EmmaStore.setMeta({ lastSync: new Date().toISOString() });
         retryN = 0; if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } // recuperado
@@ -306,6 +314,23 @@
         id: r.id, entryId: r.entry_id || null, date: r.date || '', amount: Number(r.amount) || 0,
         category: r.category || '', description: r.description || '', receiptPhotoId: r.receipt_photo_id || '',
         createdAt: r.created_at || '', updatedAt: r.updated_at || ''
+      })
+    },
+    { // emma_todo_items (actividades manuales del To Do) — OPCIONAL: si la tabla aún no existe, no rompe el sync
+      path: '/rest/v1/emma_todo_items',
+      optional: true,
+      localAll: () => EmmaStore.getTodoItems(),
+      setAll: a => EmmaStore._setTodoItemsRaw(a),
+      tombs: () => EmmaStore.getTodoTombstones(),
+      setTombs: o => EmmaStore.setTodoTombstones(o),
+      toRow: (t, owner) => ({
+        id: t.id, user_id: owner, name: t.name || '', category: t.category || null,
+        address: t.address || null, hours: t.hours || null, notes: t.notes || null,
+        created_at: t.createdAt || null, updated_at: t.updatedAt || new Date().toISOString(), deleted: false
+      }),
+      fromRow: r => ({
+        id: r.id, name: r.name || '', category: r.category || '', address: r.address || '',
+        hours: r.hours || '', notes: r.notes || '', createdAt: r.created_at || '', updatedAt: r.updated_at || ''
       })
     }
   ];
