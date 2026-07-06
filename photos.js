@@ -16,7 +16,11 @@ const EmmaPhotos = (function () {
   const CLIENT_ID = CFG.GOOGLE_CLIENT_ID || '';
   // Acceso completo a Drive: permite subir a TU carpeta pre-creada (no solo a las que
   // crea la app). Viable sin verificación de Google porque el OAuth es "Interno".
-  const SCOPE = 'https://www.googleapis.com/auth/drive openid email profile';
+  // Scope MÍNIMO (Opción A): la app solo accede a los archivos/carpetas que ELLA crea,
+  // no a todo tu Drive. Para eso, la app crea su propia carpeta "Emma & Papá Fotos" y sube ahí.
+  const SCOPE = 'https://www.googleapis.com/auth/drive.file openid email profile';
+  const APP_FOLDER_NAME = 'Emma & Papá Fotos';
+  const LS_FOLDER = 'emmaDriveFolder';
   const SUPA_URL = CFG.SUPABASE_URL || '';
   const SUPA_ANON = CFG.SUPABASE_ANON_KEY || '';
   const FN_URL = SUPA_URL ? (SUPA_URL.replace(/\/$/, '') + '/functions/v1/drive-token') : '';
@@ -50,7 +54,7 @@ const EmmaPhotos = (function () {
   function account() { return email; }
   function status() {
     if (!CLIENT_ID) return { estado: 'no-config' };
-    if (isConnected() || consented) return { estado: 'conectado', email, folder: CFG.GOOGLE_DRIVE_PHOTOS_FOLDER_PATH, folderId: FOLDER_ID };
+    if (isConnected() || consented) return { estado: 'conectado', email, folder: APP_FOLDER_NAME, folderId: appFolderId };
     return { estado: 'desconectado' };
   }
 
@@ -125,7 +129,8 @@ const EmmaPhotos = (function () {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch (e) {}
     try { _fn('disconnect').catch(() => {}); } catch (e) {} // borra el refresh_token guardado en el backend
     token = null; tokenExp = 0; email = ''; consented = false;
-    try { localStorage.removeItem(LS_DRIVE); } catch (e) {}
+    appFolderId = ''; _subCache && Object.keys(_subCache).forEach(k => delete _subCache[k]);
+    try { localStorage.removeItem(LS_DRIVE); localStorage.removeItem(LS_FOLDER); } catch (e) {}
     Object.values(thumbCache).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
   }
   // Garantiza un access_token válido SIN molestar: si caducó pero ya conectaste, el backend lo
@@ -177,13 +182,29 @@ const EmmaPhotos = (function () {
   const _subCache = {};
   function _esBoletaMeta(meta) { return ((meta && meta.tags) || []).some(t => /boleta|gasto|pago/i.test(String(t))); }
   function subfolderPara(meta) { return _esBoletaMeta(meta) ? 'Boletas y pagos' : 'Fotos de Emma'; }
-  async function ensureSubfolder(nombre) {
+  // Carpeta PROPIA de la app: con drive.file la app sí puede escribir en lo que ella misma crea.
+  let appFolderId = ''; try { appFolderId = localStorage.getItem(LS_FOLDER) || ''; } catch (e) {}
+  function _saveFolder() { try { localStorage.setItem(LS_FOLDER, appFolderId); } catch (e) {} }
+  async function ensureAppFolder() {
     await ensureToken();
+    if (appFolderId) return appFolderId;
+    // ¿ya la creamos antes? (con drive.file, files.list solo devuelve lo que la app creó)
+    try {
+      const q = encodeURIComponent(`name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+      const r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)&spaces=drive', { headers: { Authorization: 'Bearer ' + token } });
+      if (r.ok) { const d = await r.json(); if (d.files && d.files[0]) { appFolderId = d.files[0].id; _saveFolder(); return appFolderId; } }
+    } catch (e) {}
+    const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }) });
+    if (!cr.ok) throw new Error('No se pudo crear la carpeta en Drive: ' + (await cr.text()).slice(0, 120));
+    const cd = await cr.json(); appFolderId = cd.id; _saveFolder(); return appFolderId;
+  }
+  async function ensureSubfolder(nombre) {
+    const root = await ensureAppFolder();
     if (_subCache[nombre]) return _subCache[nombre];
-    const q = encodeURIComponent(`name='${nombre}' and '${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const q = encodeURIComponent(`name='${nombre}' and '${root}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)&spaces=drive', { headers: { Authorization: 'Bearer ' + token } });
     if (r.ok) { const d = await r.json(); if (d.files && d.files[0]) { _subCache[nombre] = d.files[0].id; return d.files[0].id; } }
-    const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] }) });
+    const cr = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, mimeType: 'application/vnd.google-apps.folder', parents: [root] }) });
     if (!cr.ok) throw new Error('No se pudo crear la subcarpeta');
     const cd = await cr.json(); _subCache[nombre] = cd.id; return cd.id;
   }
@@ -212,7 +233,7 @@ const EmmaPhotos = (function () {
 
   async function driveUpload(blob, fileName, parentId) {
     await ensureToken();
-    const metadata = { name: fileName, parents: [parentId || FOLDER_ID], mimeType: 'image/jpeg' };
+    const metadata = { name: fileName, parents: [parentId || appFolderId], mimeType: 'image/jpeg' };
     const boundary = 'emma_' + Math.random().toString(36).slice(2);
     const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`;
     const tail = `\r\n--${boundary}--`;
@@ -239,8 +260,8 @@ const EmmaPhotos = (function () {
   function _qDel(id) { return _idbOpen().then(db => new Promise((res, rej) => { const tx = db.transaction('queue', 'readwrite'); tx.objectStore('queue').delete(id); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })); }
 
   async function _uploadAndSave(blob, fileName, meta, width, height) {
-    let parent = FOLDER_ID;
-    try { parent = await ensureSubfolder(subfolderPara(meta)); } catch (e) {} // si falla, va a la carpeta raíz
+    let parent = await ensureAppFolder();
+    try { parent = await ensureSubfolder(subfolderPara(meta)); } catch (e) {} // si falla, va a la carpeta raíz de la app
     const up = await driveUpload(blob, fileName, parent);
     const driveUrl = up.webViewLink || ('https://drive.google.com/file/d/' + up.id + '/view');
     return EmmaStore.savePhoto({
@@ -286,15 +307,15 @@ const EmmaPhotos = (function () {
   /* ---------- Backup a Drive (JSON) ---------- */
   // Sube o ACTUALIZA un archivo de texto en la carpeta de Drive (para el auto-backup).
   async function driveUploadText(text, fileName, mime) {
-    await ensureToken(); mime = mime || 'application/json';
+    const root = await ensureAppFolder(); mime = mime || 'application/json';
     let existingId = '';
     try {
-      const q = encodeURIComponent(`name='${fileName}' and '${FOLDER_ID}' in parents and trashed=false`);
+      const q = encodeURIComponent(`name='${fileName}' and '${root}' in parents and trashed=false`);
       const r0 = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id)&spaces=drive', { headers: { Authorization: 'Bearer ' + token } });
       if (r0.ok) { const d = await r0.json(); if (d.files && d.files[0]) existingId = d.files[0].id; }
     } catch (e) {}
     const boundary = 'emma_' + Math.random().toString(36).slice(2);
-    const metadata = existingId ? {} : { name: fileName, parents: [FOLDER_ID] };
+    const metadata = existingId ? {} : { name: fileName, parents: [root] };
     const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`;
     const tail = `\r\n--${boundary}--`;
     const body = new Blob([head, text, tail], { type: 'multipart/related; boundary=' + boundary });
