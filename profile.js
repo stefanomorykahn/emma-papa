@@ -28,15 +28,43 @@ const EmmaProfile = (function () {
   // Nombres de categoría/genéricos que NO son palabras dichas por Emma (se cuelan en newWords).
   const CAT_GENERICAS = ['fruta','frutas','comida','comidas','bebida','bebidas','snack','snacks',
     'verdura','verduras','postre','postres','actividad','actividades','lugar','lugares','animal','animales',
-    'cancion','canciones','palabra','palabras','otro','otros','desayuno','almuerzo','cena','merienda','lonche'];
+    'cancion','canciones','palabra','palabras','otro','otros','desayuno','almuerzo','cena','merienda','lonche',
+    'persona','personas','juego','juegos','juguete','juguetes','rutina','rutinas','emocion','emociones'];
+
+  // Busca un token normalizado en una lista tolerando plurales simples del español:
+  // si no matchea tal cual y termina en "s"/"es", prueba la forma singular
+  // (uvas→uva, mangos→mango, galletas→galleta, melones→melon).
+  function formasSingPlural(k) {
+    const f = [k];
+    if (k.length > 3 && k.endsWith('es')) f.push(k.slice(0, -2));
+    if (k.length > 2 && k.endsWith('s')) f.push(k.slice(0, -1));
+    return f;
+  }
+  function enLista(lista, k) { return !!k && formasSingPlural(k).some(f => lista.indexOf(f) >= 0); }
+
   // ¿El token es en realidad una comida/fruta/bebida/snack o un nombre de categoría? (no una palabra)
   function esTokenComida(tok) {
     const k = norm(tok);
     if (!k) return false;
-    if (FRUTAS.indexOf(k) >= 0 || BEBIDAS.indexOf(k) >= 0 || SNACKS.indexOf(k) >= 0) return true;
-    if (BASE_COMIDA.some(x => norm(x) === k)) return true;
+    if (enLista(FRUTAS, k) || enLista(BEBIDAS, k) || enLista(SNACKS, k)) return true;
+    if (enLista(BASE_COMIDA.map(norm), k)) return true;
     return CAT_GENERICAS.indexOf(k) >= 0;
   }
+
+  // Gate de admisión de ítems al perfil (se aplica en TODAS las rutas de ingesta):
+  //  · genérico: si el token es un nombre de categoría (CAT_GENERICAS), no es un ítem real.
+  //  · ruido de frase (solo lugares/animales/frustraciones, que deben ser sustantivos cortos):
+  //    descarta frases de más de 3 palabras o que empiezan con verbo de estado/acción.
+  const VERBOS_RUIDO = ['estar', 'ir', 'tener', 'hacer', 'querer', 'poder', 'ser'];
+  const CAT_SUSTANTIVO = { places: 1, animals: 1, frustrations: 1 };
+  function esGenerico(label) { return CAT_GENERICAS.indexOf(norm(label)) >= 0; }
+  function esRuidoFrase(storeName, label) {
+    if (!CAT_SUSTANTIVO[storeName]) return false;
+    const palabras = norm(label).split(' ').filter(Boolean);
+    if (palabras.length > 3) return true;
+    return VERBOS_RUIDO.indexOf(palabras[0]) >= 0;
+  }
+  function admitirItem(storeName, label) { return !esGenerico(label) && !esRuidoFrase(storeName, label); }
 
   const POS = ['encant','le gust','le encant','pidió más','pidio mas','disfrut','feliz','rió','rio',
     'contenta','adora','quería más','queria mas','fascin','sonri','tranquil','calm','ama '];
@@ -125,7 +153,7 @@ const EmmaProfile = (function () {
       const likedNorm = new Set(likedList.map(norm));
       const foodSent = e.food_result ? resultadoASentimiento(e.food_result) : null;
 
-      const add = (store, storeName, label, o) => { addItem(store, label, Object.assign({ source: 'manual' }, o)); markSeen(e.id, storeName, label); };
+      const add = (store, storeName, label, o) => { if (!admitirItem(storeName, label)) return; addItem(store, label, Object.assign({ source: 'manual' }, o)); markSeen(e.id, storeName, label); };
       // Actividades
       toList(e.activities).forEach(a => add(S.activities, 'activities', a, { sentiment: likedNorm.has(norm(a)) ? 'pos' : 'neu', date, mood, note: likedNorm.has(norm(a)) ? noteTxt : '' }));
       // Gustos
@@ -164,6 +192,7 @@ const EmmaProfile = (function () {
     // Items confirmados / perfil inicial (emma_profile_items) — incluye seed
     confirmedItems.forEach(i => {
       const storeName = CAT_STORE[norm(i.category)] || 'liked';
+      if (!admitirItem(storeName, i.name)) return;
       addItem(S[storeName], i.name, { sentiment: i.sentiment || 'neu',
         date: (i.createdAt || '').slice(0, 10) || (i.date || ''), note: i.notes || '',
         source: (i.source === 'inicial' || i.source === 'seed') ? 'inicial' : 'nota' });
@@ -175,7 +204,7 @@ const EmmaProfile = (function () {
       const sid = a.entryId || a.entry_id || a.sourceId || '';
       const date = dateById[sid] || (a.createdAt || '').slice(0, 10);
       const put = (storeName, name, sentiment, evidence, conf) => {
-        if (!name) return; if (wasSeen(sid, storeName, name)) return;
+        if (!name) return; if (!admitirItem(storeName, name)) return; if (wasSeen(sid, storeName, name)) return;
         addItem(S[storeName], name, { sentiment, date, note: evidence || '', source: 'ia', confidence: conf });
         markSeen(sid, storeName, name);
       };
@@ -290,9 +319,9 @@ const EmmaProfile = (function () {
   }
   function seccion(t, items) { return (items && items.length) ? `<h4 class="p-sub">${t}</h4>` + items.map(card).join('') : ''; }
   function vacio(msg) { return `<p class="p-vacio">${msg || 'Aún sin datos.'}</p>`; }
-  const isFruit = it => FRUTAS.includes(norm(it.label));
-  const isBebida = it => BEBIDAS.includes(norm(it.label));
-  const isSnack  = it => SNACKS.includes(norm(it.label));
+  const isFruit = it => enLista(FRUTAS, norm(it.label));
+  const isBebida = it => enLista(BEBIDAS, norm(it.label));
+  const isSnack  = it => enLista(SNACKS, norm(it.label));
   const esPos = it => it.pos > 0 && it.neg === 0;
   const esNeg = it => it.neg > 0 && it.pos === 0;
 
