@@ -66,6 +66,39 @@ const EmmaProfile = (function () {
   }
   function admitirItem(storeName, label) { return !esGenerico(label) && !esRuidoFrase(storeName, label); }
 
+  /* ---------- Correcciones manuales del perfil (renombrar / fusionar / quitar) ----------
+     Se guardan aparte y se re-aplican en CADA reconstrucción, así sobreviven a los rebuilds.
+     Estructura: [{op:'hide',cat,key,from} | {op:'merge',cat,key,to,from}] (key = label normalizado). */
+  const KEY_CORR = 'emma_profile_corrections';
+  function getCorrections() { try { const a = JSON.parse(localStorage.getItem(KEY_CORR)); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function setCorrections(a) { try { localStorage.setItem(KEY_CORR, JSON.stringify(a || [])); } catch (e) {} }
+  function corregir(cat, key, op, to, from) {
+    const list = getCorrections();
+    list.push(op === 'hide' ? { op: 'hide', cat, key, from: from || '' } : { op: 'merge', cat, key, to: to || '', from: from || '' });
+    setCorrections(list);
+    return rebuildProfileFromEntries();
+  }
+  function quitarCorreccion(i) { const list = getCorrections(); if (i < 0 || i >= list.length) return; list.splice(i, 1); setCorrections(list); return rebuildProfileFromEntries(); }
+  // Aplica las correcciones sobre el store ya reconstruido (S = { foods:{}, ... }).
+  function aplicarCorrecciones(S) {
+    getCorrections().forEach(c => {
+      const cat = S[c.cat]; if (!cat) return;
+      if (c.op === 'hide') { delete cat[c.key]; return; }
+      const src = cat[c.key]; if (!src) return;
+      const toKey = norm(c.to || ''); if (!toKey) return;
+      if (toKey === c.key) { src.label = pretty(c.to); return; }          // renombrar in situ
+      if (!cat[toKey]) { cat[toKey] = src; src.label = pretty(c.to); delete cat[c.key]; return; } // mover
+      const dst = cat[toKey];                                             // fusionar src -> dst
+      dst.count += src.count; dst.pos += src.pos; dst.neg += src.neg; dst.neu = (dst.neu || 0) + (src.neu || 0);
+      if ((src.lastDate || '') > (dst.lastDate || '')) dst.lastDate = src.lastDate;
+      (src.notes || []).forEach(n => { if (!dst.notes.includes(n) && dst.notes.length < 3) dst.notes.push(n); });
+      for (const m in (src.moods || {})) dst.moods[m] = (dst.moods[m] || 0) + src.moods[m];
+      for (const s in (src.sources || {})) dst.sources[s] = (dst.sources[s] || 0) + src.sources[s];
+      dst.confSum = (dst.confSum || 0) + (src.confSum || 0); dst.confN = (dst.confN || 0) + (src.confN || 0);
+      delete cat[c.key];
+    });
+  }
+
   const POS = ['encant','le gust','le encant','pidió más','pidio mas','disfrut','feliz','rió','rio',
     'contenta','adora','quería más','queria mas','fascin','sonri','tranquil','calm','ama '];
   const NEG = ['no quiso','no le gust','rechaz','escup','lloró','lloro','no comió','no comio','no aceptó',
@@ -222,6 +255,7 @@ const EmmaProfile = (function () {
     // Notas importantes -> recuerdos
     notes.forEach(n => { if (n.isImportant) memories.push({ date: n.date, text: n.text, kind: 'Nota importante' }); });
 
+    aplicarCorrecciones(S); // correcciones manuales (renombrar/fusionar/quitar) al final
     memories.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const data = { updatedAt: new Date().toISOString(), categories: S, memories: memories.slice(0, 60) };
     localStorage.setItem('emmaProfileData', JSON.stringify(data));
@@ -309,15 +343,16 @@ const EmmaProfile = (function () {
     if (s.ia) parts.push('IA' + (it.confN ? ' ' + Math.round(100 * it.confSum / it.confN) + '%' : ''));
     return parts.join(' · ');
   }
-  function card(it) {
+  function card(it, cat) {
     const mt = moodTop(it);
     const fu = fuenteLabel(it);
+    const corr = cat ? `<button title="Corregir" onclick="corregirPerfilItem('${cat}','${norm(it.label)}')" style="border:none;background:none;color:var(--suave);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;flex:0 0 auto">⋯</button>` : '';
     return `<div class="p-item"><div class="pi-top"><span class="pi-label">${esc(it.label)}</span>
-      <span class="estado ${estadoClase(it)}">${estado(it)}</span></div>
+      <span style="display:flex;align-items:center;gap:6px;flex:0 0 auto"><span class="estado ${estadoClase(it)}">${estado(it)}</span>${corr}</span></div>
       <div class="pi-meta">${it.count} ${it.count === 1 ? 'vez' : 'veces'} · última: ${fechaCorta(it.lastDate)}${mt ? ' · suele estar ' + esc(mt.toLowerCase()) : ''}${fu ? ' · ' + fu : ''}</div>
       ${it.notes.length ? `<div class="pi-nota">"${esc(it.notes[it.notes.length - 1])}"</div>` : ''}</div>`;
   }
-  function seccion(t, items) { return (items && items.length) ? `<h4 class="p-sub">${t}</h4>` + items.map(card).join('') : ''; }
+  function seccion(t, items, cat) { return (items && items.length) ? `<h4 class="p-sub">${t}</h4>` + items.map(it => card(it, cat)).join('') : ''; }
   function vacio(msg) { return `<p class="p-vacio">${msg || 'Aún sin datos.'}</p>`; }
   const isFruit = it => enLista(FRUTAS, norm(it.label));
   const isBebida = it => enLista(BEBIDAS, norm(it.label));
@@ -369,28 +404,28 @@ const EmmaProfile = (function () {
       case 'alimentacion': {
         const frutas = foods.filter(isFruit);
         const otras = foods.filter(f => !isFruit(f) && !isBebida(f) && !isSnack(f));
-        return (seccion('Frutas que le gustan', frutas.filter(esPos)) +
-          seccion('Frutas que no aceptó', frutas.filter(esNeg)) +
-          seccion('Comidas favoritas', otras.filter(esPos)) +
-          seccion('Comidas que rechazó', otras.filter(esNeg)) +
-          seccion('Comidas nuevas (una vez)', foods.filter(f => f.count === 1 && !esNeg(f))) +
-          seccion('Bebidas', foods.filter(isBebida)) +
-          seccion('Snacks', foods.filter(isSnack))) || vacio();
+        return (seccion('Frutas que le gustan', frutas.filter(esPos), 'foods') +
+          seccion('Frutas que no aceptó', frutas.filter(esNeg), 'foods') +
+          seccion('Comidas favoritas', otras.filter(esPos), 'foods') +
+          seccion('Comidas que rechazó', otras.filter(esNeg), 'foods') +
+          seccion('Comidas nuevas (una vez)', foods.filter(f => f.count === 1 && !esNeg(f)), 'foods') +
+          seccion('Bebidas', foods.filter(isBebida), 'foods') +
+          seccion('Snacks', foods.filter(isSnack), 'foods')) || vacio();
       }
       case 'actividades':
-        return (seccion('Favoritas', getTopItems('activities', 6).filter(a => a.count > 0)) +
-          seccion('Para repetir', acts.filter(esPos)) +
-          seccion('Que la calman', getTopItems('calming', 20)) +
-          seccion('Que la frustran', Object.values(D.categories.frustrations)) +
-          seccion('Nuevas (una vez)', acts.filter(a => a.count === 1))) || vacio();
+        return (seccion('Favoritas', getTopItems('activities', 6).filter(a => a.count > 0), 'activities') +
+          seccion('Para repetir', acts.filter(esPos), 'activities') +
+          seccion('Que la calman', getTopItems('calming', 20), 'calming') +
+          seccion('Que la frustran', Object.values(D.categories.frustrations), 'frustrations') +
+          seccion('Nuevas (una vez)', acts.filter(a => a.count === 1), 'activities')) || vacio();
       case 'sobre': {
         const an = Object.values(D.categories.animals);
-        return (seccion('Personalidad', Object.values(D.categories.personality)) +
-          seccion('Canciones que le gustan', Object.values(D.categories.songs)) +
-          seccion('Animales que le gustan', an.filter(x => !esNeg(x))) +
-          seccion('Animales que no le gustan', an.filter(esNeg)) +
-          seccion('Rutinas y cuidados', Object.values(D.categories.routines)) +
-          seccion('Ideas futuras', Object.values(D.categories.ideas))) || vacio('Aún sin datos.');
+        return (seccion('Personalidad', Object.values(D.categories.personality), 'personality') +
+          seccion('Canciones que le gustan', Object.values(D.categories.songs), 'songs') +
+          seccion('Animales que le gustan', an.filter(x => !esNeg(x)), 'animals') +
+          seccion('Animales que no le gustan', an.filter(esNeg), 'animals') +
+          seccion('Rutinas y cuidados', Object.values(D.categories.routines), 'routines') +
+          seccion('Ideas futuras', Object.values(D.categories.ideas), 'ideas')) || vacio('Aún sin datos.');
       }
       case 'resumen':
       default: {
@@ -419,6 +454,6 @@ const EmmaProfile = (function () {
 
   return { rebuildProfileFromEntries, data, getTopItems, getRecentItems, getSuggestedChips,
     historyTokens, extractSuggestionsFromFreeText, addDetectedItemToProfile, renderTab, getPhotosForProfileItem, esTokenComida,
-    getHighlights, highlightsHtml };
+    getHighlights, highlightsHtml, corregir, quitarCorreccion, getCorrections };
 })();
 if (typeof window !== 'undefined') window.EmmaProfile = EmmaProfile;

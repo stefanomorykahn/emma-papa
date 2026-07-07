@@ -267,6 +267,7 @@ const EmmaStore = (function () {
     localStorage.removeItem(KEY_EXP_DEL);
     localStorage.removeItem(KEY_TODO);
     localStorage.removeItem(KEY_TODO_DEL);
+    localStorage.removeItem('emma_profile_corrections');
     localStorage.removeItem('emmaSeeded');
   }
 

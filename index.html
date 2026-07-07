@@ -425,6 +425,11 @@
       <div style="display:flex;gap:8px"><input type="text" id="nuevaTodoCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTodoCat();}" /><button class="mini" onclick="agregarTodoCat()">＋ Agregar</button></div>
     </div>
 
+    <div class="grupo-btns" id="corrGrupo" style="display:none"><h3>Correcciones del perfil</h3>
+      <p class="pi-meta" style="margin:-4px 0 8px">Cambios manuales que hiciste al Perfil Vivo (se mantienen en cada actualización).</p>
+      <div id="corrBox"></div>
+    </div>
+
     <div class="grupo-btns"><h3>Apariencia</h3>
       <button class="btn-full" onclick="cambiarTema()"><span class="ico" aria-hidden="true">🌗</span> <span id="temaLabel">Tema: Automático</span></button>
     </div>
@@ -511,10 +516,11 @@
 
 <div class="login-overlay" id="reportOverlay">
   <div class="login-card"><div class="login-logo">📄</div><h2>Descargar reporte</h2>
-    <p class="login-nota" style="margin:-2px 0 12px">Un resumen para imprimir o guardar como PDF: highlights, historial y fotos de Emma.</p>
-    <div class="campo" style="text-align:left"><label>Desde</label><input type="date" id="rep-desde" /></div>
-    <div class="campo" style="text-align:left"><label>Hasta</label><input type="date" id="rep-hasta" /></div>
-    <p class="pi-meta" style="margin:2px 0 12px">Déjalo así para incluir todo el historial.</p>
+    <p class="login-nota" style="margin:-2px 0 10px">Un resumen para imprimir o guardar como PDF: highlights, frases, historial y fotos de Emma.</p>
+    <div id="rep-anios" class="chips" style="justify-content:center;margin:0 0 12px"></div>
+    <div class="campo" style="text-align:left"><label>Desde</label><input type="date" id="rep-desde" oninput="repClearAnio()" /></div>
+    <div class="campo" style="text-align:left"><label>Hasta</label><input type="date" id="rep-hasta" oninput="repClearAnio()" /></div>
+    <p class="pi-meta" style="margin:2px 0 12px">Elige un año para "El año de Emma", o un rango propio.</p>
     <button class="guardar" id="rep-generar" onclick="generarReporte()">Generar reporte</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('reportOverlay').classList.remove('show');return false;">Cancelar</a></p>
   </div>
@@ -529,6 +535,16 @@
     <div class="campo" style="text-align:left"><label>Notas / ¿qué se puede hacer? <span class="op">(opcional)</span></label><textarea id="td-notas" placeholder="Juegos, áreas verdes, qué llevar…"></textarea></div>
     <button class="guardar" id="td-guardar" onclick="guardarTodoItem()">Guardar actividad</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('todoOverlay').classList.remove('show');return false;">Cancelar</a></p>
+  </div>
+</div>
+
+<div class="login-overlay" id="corrOverlay">
+  <div class="login-card" style="max-width:340px"><div class="login-logo">🔧</div><h2 style="font-size:18px">Corregir ítem</h2>
+    <p class="pi-meta" id="corr-sub" style="margin:-2px 0 14px"></p>
+    <button class="btn-full" onclick="corrAccion('rename')"><span class="ico">✏️</span> Renombrar</button>
+    <button class="btn-full" onclick="corrAccion('merge')"><span class="ico">🔗</span> Fusionar con otro ítem</button>
+    <button class="btn-full" onclick="corrAccion('hide')"><span class="ico">🗑️</span> Quitar del perfil</button>
+    <p class="login-nota"><a href="#" onclick="document.getElementById('corrOverlay').classList.remove('show');return false;">Cancelar</a></p>
   </div>
 </div>
 
@@ -718,16 +734,35 @@ function eliminarTodo(id){const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id==
   EmmaStore.deleteTodoItem(id);renderTodo();toast('Eliminada');}
 function comoLlegarTodo(id){const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id===id);if(!it||!it.address)return;
   window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(it.address),'_blank','noopener');}
-function todoCustomCard(it){const dir=(it.address||'').trim();
+// ¿Se hizo esta actividad manual? (igual que las salidas base: busca su nombre en las entradas)
+function todoCustomRealizada(it){
+  const t=normTxt(it.name); if(!t)return null; let fecha=null;
+  (EmmaStore.getEntries()||[]).forEach(e=>{ if(e.deleted)return;
+    const campos=[].concat(e.activities||[],e.places||[],e.liked||[]);
+    if(campos.some(x=>normTxt(x)===t)){ if(!fecha||(e.date||'')>fecha)fecha=e.date; }
+  });
+  return fecha;
+}
+function marcarTodoCustom(id){
+  const it=(EmmaStore.getTodoItems()||[]).find(x=>x.id===id); if(!it)return;
+  EmmaStore.saveEntry({date:hoyISO(),mood:'',activities:[it.name],places:[],liked:[it.name],
+    note:'Salida: '+it.name,foods:[],fruits:[],food_result:'',newWords:[],calmingThings:[],frustrations:[],people:[]});
+  rebuildProfile(); toast('¡Anotado! 🎉'); renderTodo();
+}
+function todoCustomCard(it){const dir=(it.address||'').trim();const fecha=todoCustomRealizada(it);
   return `<div class="p-bloque" style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <b style="font-size:16px;line-height:1.25">${esc(it.name)}</b>
       <span class="estado e-neu" style="flex:0 0 auto">Mía</span></div>
+    ${fecha?`<div style="margin-top:7px"><span class="estado e-pos">✓ Realizada · ${fechaCorta(fecha)}</span></div>`:''}
     ${dir?`<div style="margin-top:9px"><span class="pi-label">Dirección:</span> ${esc(dir)}
       <button class="mini" style="margin-left:6px;margin-top:4px" onclick="comoLlegarTodo('${it.id}')">📍 Cómo llegar</button></div>`:''}
     ${(it.hours||'').trim()?`<div class="pi-meta" style="margin-top:7px">🕒 ${esc(it.hours)}</div>`:''}
     ${(it.notes||'').trim()?`<div style="margin-top:7px">${esc(it.notes)}</div>`:''}
-    <div style="margin-top:11px;display:flex;gap:8px">
+    <div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">
+      ${fecha
+        ?`<button class="mini" onclick="marcarTodoCustom('${it.id}')">↻ Hacer de nuevo</button>`
+        :`<button class="mini" style="background:var(--acento);color:#fff;border-color:var(--acento)" onclick="marcarTodoCustom('${it.id}')">✓ Marcar como realizada</button>`}
       <button class="mini" onclick="editarTodo('${it.id}')">✏️ Editar</button>
       <button class="mini del" onclick="eliminarTodo('${it.id}')">Eliminar</button></div>
   </div>`;}
@@ -841,6 +876,21 @@ function eliminarTodoCat(i){const cats=getTodoCats();const nombre=cats[i];if(nom
   const n=(EmmaStore.getTodoItems()||[]).filter(t=>(t.category||'')===nombre).length;
   const msg=n?('¿Eliminar la categoría "'+nombre+'"? Sus '+n+' actividad'+(n>1?'es':'')+' pasarán a "Sin categoría".'):('¿Eliminar la categoría "'+nombre+'"?');
   if(!confirm(msg))return;removeTodoCat(i);renderTodoCategorias();toast('Categoría eliminada');}
+
+/* ===== Ajustes · correcciones del perfil (deshacer) ===== */
+const CORR_CAT_LABEL={foods:'comidas',activities:'actividades',calming:'la calma',frustrations:'frustraciones',places:'lugares',people:'personas',language:'palabras',songs:'canciones',animals:'animales',personality:'personalidad',routines:'rutinas',ideas:'ideas',liked:'gustos'};
+function renderCorrecciones(){
+  const grupo=$('corrGrupo'),box=$('corrBox');if(!grupo||!box)return;
+  const list=(window.EmmaProfile&&EmmaProfile.getCorrections)?EmmaProfile.getCorrections():[];
+  if(!list.length){grupo.style.display='none';box.innerHTML='';return;}
+  grupo.style.display='';
+  box.innerHTML=list.map((c,i)=>{const cat=CORR_CAT_LABEL[c.cat]||c.cat;const from=esc(c.from||c.key);
+    const txt=c.op==='hide'?`Quitado <b>${from}</b> de ${esc(cat)}`:`<b>${from}</b> → <b>${esc(c.to||'')}</b> en ${esc(cat)}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;${i<list.length-1?'border-bottom:1px solid var(--linea);':''}">
+      <span style="flex:1;font-size:13.5px;min-width:0">${txt}</span>
+      <button class="mini" style="min-height:36px" onclick="deshacerCorreccion(${i})">Deshacer</button></div>`;}).join('');
+}
+function deshacerCorreccion(i){if(window.EmmaProfile&&EmmaProfile.quitarCorreccion){EmmaProfile.quitarCorreccion(i);renderCorrecciones();if($('v-perfil')&&$('v-perfil').classList.contains('activa'))renderPerfil();toast('Corrección deshecha');}}
 let gastoPeriodo='mes';
 const PERIODOS=[['mes','Este mes'],['anterior','Mes pasado'],['anio','Este año'],['todo','Todo'],['rango','Rango…']];
 function setGastoPeriodo(k){gastoPeriodo=k;$('x-rango').style.display=(k==='rango')?'flex':'none';
@@ -1153,6 +1203,20 @@ function eliminar(id){if(!confirm('¿Eliminar este momento? No se puede deshacer
 /* ===== Perfil ===== */
 let perfTab='resumen';let decVer=false;
 const TABS=[['resumen','Resumen'],['hitos','Hitos'],['tendencias','Tendencias'],['alimentacion','Alimentación'],['actividades','Actividades'],['sobre','Sobre Emma']];
+/* ===== Corregir ítems del Perfil Vivo (renombrar / fusionar / quitar) ===== */
+let corrCtx=null;
+function corregirPerfilItem(cat,key){
+  const D=EmmaProfile.data();const it=((D.categories||{})[cat]||{})[key];
+  const label=it?it.label:key; corrCtx={cat,key,label};
+  $('corr-sub').textContent='"'+label+'"'; $('corrOverlay').classList.add('show');
+}
+function corrAccion(op){
+  if(!corrCtx)return; const {cat,key,label}=corrCtx;
+  if(op==='rename'){ const to=prompt('Nuevo nombre para "'+label+'":',label); if(to==null||!to.trim())return; EmmaProfile.corregir(cat,key,'merge',to.trim(),label); }
+  else if(op==='merge'){ const to=prompt('¿Con qué ítem fusionar "'+label+'"?\nEscribe el nombre del ítem con el que se unirá:',''); if(to==null||!to.trim())return; EmmaProfile.corregir(cat,key,'merge',to.trim(),label); }
+  else if(op==='hide'){ if(!confirm('¿Quitar "'+label+'" del perfil?\nReaparecerá si lo vuelves a registrar; puedes deshacerlo en Ajustes.'))return; EmmaProfile.corregir(cat,key,'hide','',label); }
+  corrCtx=null; $('corrOverlay').classList.remove('show'); renderPerfil(); toast('Perfil actualizado ✓');
+}
 function renderPerfil(){rebuildProfile();
   const dec=EmmaAI.practicalDecisions();
   if(perfTab==='resumen'&&dec.length){const vis=decVer?dec:dec.slice(0,2);
@@ -1233,7 +1297,7 @@ function actualizarPerfil(btnId){
 
 /* ===== Ajustes / backup ===== */
 function descargar(c,n,t){const b=new Blob([c],{type:t});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
-function backupCompleto(){return{app:'Emma & Papá',version:5,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),emmaTodoItems:EmmaStore.getTodoItems(),emmaTodoCategories:getTodoCats(),exportadoEl:new Date().toISOString()};}
+function backupCompleto(){return{app:'Emma & Papá',version:5,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),emmaTodoItems:EmmaStore.getTodoItems(),emmaTodoCategories:getTodoCats(),emmaProfileCorrections:(window.EmmaProfile&&EmmaProfile.getCorrections)?EmmaProfile.getCorrections():[],exportadoEl:new Date().toISOString()};}
 function exportarBackup(){descargar(JSON.stringify(backupCompleto(),null,2),'emma-backup-'+hoyISO()+'.json','application/json');EmmaStore.setMeta({lastBackup:new Date().toISOString()});renderAjustes();toast('Backup exportado 📁');}
 function exportarMarkdown(){descargar(EmmaNotes.exportMarkdown()+'\n'+resumenPerfilTexto(),'emma-'+hoyISO()+'.md','text/markdown');toast('Markdown descargado');}
 
@@ -1242,10 +1306,20 @@ let generandoReporte=false;
 function descargarReporte(){
   const ents=EmmaStore.getEntries().filter(e=>!e.deleted&&e.date);
   if(!ents.length){toast('Aún no hay momentos para el reporte');return;}
-  const f=ents.map(e=>e.date).sort();
-  $('rep-desde').value=f[0];$('rep-hasta').value=f[f.length-1];
+  const f=ents.map(e=>e.date).sort();const d1=f[0],d2=f[f.length-1];
+  $('rep-desde').value=d1;$('rep-hasta').value=d2;
+  // chips: "Todo" + un año por cada año con datos ("El año de Emma")
+  const anios=[...new Set(f.map(d=>d.slice(0,4)))].sort();
+  const chips=['<span class="chip on" onclick="repSetRango(this,\''+d1+'\',\''+d2+'\')">Todo</span>']
+    .concat(anios.map(y=>'<span class="chip" onclick="repSetRango(this,\''+y+'-01-01\',\''+y+'-12-31\')">'+y+'</span>'));
+  $('rep-anios').innerHTML=chips.join('');
   $('reportOverlay').classList.add('show');
 }
+function repSetRango(el,d1,d2){
+  $('rep-desde').value=d1;$('rep-hasta').value=d2;
+  const box=$('rep-anios');if(box)[...box.children].forEach(c=>c.classList.toggle('on',c===el));
+}
+function repClearAnio(){const box=$('rep-anios');if(box)[...box.children].forEach(c=>c.classList.remove('on'));}
 async function generarReporte(){
   if(generandoReporte)return;
   const d1=$('rep-desde').value||'0000-01-01';const d2=$('rep-hasta').value||'9999-12-31';
@@ -1299,6 +1373,13 @@ function buildReportHTML(ents,photos,photoMap,d1,d2){
   }).join('');
   const restantes=photos.filter(p=>photoMap[p.id]&&!used[p.id]);
   const galeriaHtml=restantes.length?('<h2>Más fotos</h2><div class="fotos gal">'+restantes.map(p=>`<figure><img src="${photoMap[p.id]}" alt="${R(p.title||'Foto de Emma')}"/><figcaption>${R((p.title||'')+(p.date?(p.title?' · ':'')+fechaCorta(p.date):''))}</figcaption></figure>`).join('')+'</div>'):'';
+  // Frases y momentos (recuerdos del perfil: primeras veces, ternura, avances, notas importantes)
+  const mem=(window.EmmaProfile&&EmmaProfile.data)?(EmmaProfile.data().memories||[]):[];
+  const memRango=mem.filter(m=>m&&m.text&&(m.date||'')>=d1&&(m.date||'')<=d2);
+  const frasesHtml=memRango.length?('<section><h2>Frases y momentos</h2>'+memRango.slice(0,40).map(m=>`<div class="fm"><span class="fm-k">${R(m.kind||'Momento')}</span><span class="fm-d">${R(fechaCorta(m.date))}</span><div class="fm-t">“${R(m.text)}”</div></div>`).join('')+'</section>'):'';
+  // Modo "El año de Emma": el rango es exactamente un año calendario completo
+  const esAnual=/^\d{4}-01-01$/.test(d1)&&d2===d1.slice(0,4)+'-12-31';
+  const anio=esAnual?d1.slice(0,4):'';
   const rangoLbl=ents.length?(R(fechaCorta(ents[ents.length-1].date))+' — '+R(fechaCorta(ents[0].date))):'';
   const nombre=R(EmmaStore.EMMA.nombre);const edad=R(EmmaStore.edadEmma());
   const css='*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#faf6f0;color:#3a3330;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
@@ -1307,6 +1388,8 @@ function buildReportHTML(ents,photos,photoMap,d1,d2){
     +'.cover{text-align:center;padding:38px 20px 30px;border-bottom:2px solid #ece2d5;margin-bottom:22px}'
     +'.cover .em{font-size:44px}.cover h1{font-size:26px;margin:6px 0 4px;color:#c67b6a;letter-spacing:.2px}'
     +'.cover .sub{color:#8a7d74;font-size:14px;margin:2px 0}.cover .frase{margin-top:14px;font-style:italic;color:#6b5f56;font-size:14px}'
+    +'.cover .anual{font-size:17px;color:#c67b6a;font-weight:700;margin:4px 0 2px}'
+    +'.fm{margin:10px 0;padding-left:12px;border-left:3px solid #e6c78a}.fm .fm-k{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#c67b6a;font-weight:700}.fm .fm-d{font-size:11.5px;color:#8a7d74;margin-left:8px}.fm .fm-t{font-style:italic;color:#6b5f56;font-size:13.5px;margin-top:2px}'
     +'section{background:#fffdf9;border:1px solid #ece2d5;border-radius:16px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(120,95,70,.05)}'
     +'h2{font-size:15px;margin:0 0 10px;color:#c67b6a;text-transform:uppercase;letter-spacing:.5px}'
     +'section>h2:not(:first-child){margin-top:16px}'
@@ -1325,14 +1408,16 @@ function buildReportHTML(ents,photos,photoMap,d1,d2){
     +'.vac{color:#8a7d74;font-size:13.5px;margin:4px 0}'
     +'@media print{.print{display:none}body{background:#fff}section,.ent{box-shadow:none}.cover{page-break-after:auto}}'
     +'@media(max-width:520px){.row .k{flex-basis:96px}.fotos figure,.fotos.gal figure{width:100%}}';
-  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reporte de Emma · '+nombre+'</title><style>'+css+'</style></head><body>'
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+(esAnual?'El año de Emma '+anio:'Reporte de Emma · '+nombre)+'</title><style>'+css+'</style></head><body>'
     +'<button class="print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>'
     +'<div class="wrap">'
     +'<div class="cover"><div class="em">🌸</div><h1>'+nombre+'</h1>'
+    +(esAnual?'<div class="anual">El año de Emma · '+anio+'</div>':'')
     +(edad?'<div class="sub">'+edad+'</div>':'')
     +(rangoLbl?'<div class="sub">'+rangoLbl+'</div>':'')
-    +'<div class="frase">Un registro de los días, las palabras y los pequeños grandes momentos de Emma.</div></div>'
+    +'<div class="frase">'+(esAnual?'Un año de días, palabras y pequeños grandes momentos de Emma.':'Un registro de los días, las palabras y los pequeños grandes momentos de Emma.')+'</div></div>'
     +'<section><h2>Highlights de Emma</h2>'+hlHtml+hitosHtml+'</section>'
+    +frasesHtml
     +'<section><h2>Gastos</h2>'+gastosHtml+'</section>'
     +'<section><h2>Historial</h2>'+(entHtml||'<p class="vac">Sin momentos en este periodo.</p>')+'</section>'
     +(galeriaHtml?'<section>'+galeriaHtml+'</section>':'')
@@ -1350,11 +1435,11 @@ function copiarNotasClaude(){copiar(EmmaNotes.copyForClaude(),'Notas copiadas �
 function copiarResumenDia(){const hoy=hoyISO();const d=EmmaStore.getEntries().filter(e=>e.date===hoy);if(!d.length){toast('No hay registros de hoy');return;}
   let t='Emma · '+fechaLarga(hoy)+'\n';d.forEach(e=>{const p=[];if(e.mood)p.push('Estado: '+e.mood);if((e.activities||[]).length)p.push('Hicimos: '+e.activities.join(', '));if((e.liked||[]).length)p.push('Le gustó: '+e.liked.join(', '));if((e.foods||[]).length)p.push('Comida: '+e.foods.join(', ')+(e.food_result?' ('+e.food_result+')':''));if((e.newWords||[]).length)p.push('Palabra: '+e.newWords.join(', '));if(e.note)p.push('Nota: '+e.note);t+='• '+p.join(' · ')+'\n';});copiar(t,'Resumen del día copiado 📋');}
 function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('Esto reemplazará los datos actuales. ¿Continuar?'))return;
-  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);if(d.emmaTodoItems)EmmaStore._setTodoItemsRaw(d.emmaTodoItems);if(Array.isArray(d.emmaTodoCategories)&&d.emmaTodoCategories.length)setTodoCats(d.emmaTodoCategories);
+  if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);if(d.emmaTodoItems)EmmaStore._setTodoItemsRaw(d.emmaTodoItems);if(Array.isArray(d.emmaTodoCategories)&&d.emmaTodoCategories.length)setTodoCats(d.emmaTodoCategories);if(Array.isArray(d.emmaProfileCorrections))try{localStorage.setItem('emma_profile_corrections',JSON.stringify(d.emmaProfileCorrections));}catch(e){}
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
-function renderAjustes(){renderCategorias();renderTodoCategorias();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+function renderAjustes(){renderCategorias();renderTodoCategorias();renderCorrecciones();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}
