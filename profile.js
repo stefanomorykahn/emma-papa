@@ -390,8 +390,9 @@ const EmmaProfile = (function () {
   // Panel HTML de highlights (para el Perfil Resumen y el reporte imprimible).
   function highlightsHtml() {
     const hl = getHighlights();
-    if (!hl.length) return '<div class="p-bloque"><h3>Highlights de Emma</h3><p class="p-vacio" style="margin-top:4px">Registra momentos y comidas para ver los highlights de Emma.</p></div>';
-    return '<div class="p-bloque"><h3>Highlights de Emma</h3>' +
+    const NN = ((EmmaStore && EmmaStore.EMMA && EmmaStore.EMMA.nombre) || '').trim().split(' ')[0] || 'tu peque';
+    if (!hl.length) return '<div class="p-bloque"><h3>Highlights de ' + esc(NN) + '</h3><p class="p-vacio" style="margin-top:4px">Registra momentos y comidas para ver los highlights de ' + esc(NN) + '.</p></div>';
+    return '<div class="p-bloque"><h3>Highlights de ' + esc(NN) + '</h3>' +
       hl.map(l => `<div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:14px;line-height:1.45"><span style="flex:0 0 auto">${l.emoji}</span><span><b>${esc(l.label)}:</b> ${esc(l.text)}</span></div>`).join('') +
       '</div>';
   }
