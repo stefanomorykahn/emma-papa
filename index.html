@@ -1518,7 +1518,7 @@ function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new 
   if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);if(d.emmaTodoItems)EmmaStore._setTodoItemsRaw(d.emmaTodoItems);if(Array.isArray(d.emmaTodoCategories)&&d.emmaTodoCategories.length)setTodoCats(d.emmaTodoCategories);if(Array.isArray(d.emmaProfileCorrections))try{localStorage.setItem('emma_profile_corrections',JSON.stringify(d.emmaProfileCorrections));}catch(e){}
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
-  if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(!EmmaStore.hasChild()&&window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
+  if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(!(EmmaStore.hasChild&&EmmaStore.hasChild())&&window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
 function renderAjustes(){renderCategorias();renderTodoCategorias();renderCorrecciones();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
@@ -1670,6 +1670,7 @@ function hacerRegistro(){
   if(!nac){err.textContent='Elige la fecha de nacimiento.';return;}
   if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
   if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return;}
+  if(!EmmaStore.setChild){err.textContent='La app se está actualizando. Ciérrala y ábrela, e intenta de nuevo.';return;}
   $('signupBtn').disabled=true;$('signupBtn').textContent='Creando…';
   EmmaSync.signUp(email,pass).then(res=>{
     if(res&&res.session){
@@ -1724,7 +1725,7 @@ function recuperarPwd(){const email=$('loginEmail').value.trim(),err=$('loginErr
   EmmaSync.recoverPassword(email).then(()=>toast('Te enviamos un correo para recuperar tu contraseña 📧')).catch(e=>{err.textContent=(e&&e.message)||'No se pudo enviar el correo.';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();if(id==='galeria')renderGaleria();}
-window.onEmmaSynced=function(){if(!EmmaStore.hasChild()&&window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();aplicarIdentidad();refrescarVista();};
+window.onEmmaSynced=function(){if(!(EmmaStore.hasChild&&EmmaStore.hasChild())&&window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();aplicarIdentidad();refrescarVista();};
 
 /* ===== Auto-backup a Drive (red de seguridad) ===== */
 function autoBackup(){
@@ -1743,7 +1744,8 @@ function init(){
   aplicarTema();
   aplicarIdentidad();
   // El seed son los gustos de Emma: solo para la cuenta original (sin childSettings). Las cuentas nuevas arrancan vacías.
-  if(!EmmaStore.hasChild()&&window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
+  // Guard: si storage.js aún es la versión cacheada vieja (sin hasChild), se comporta como antes (seed sí).
+  if(!(EmmaStore.hasChild&&EmmaStore.hasChild())&&window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
   $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
   refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
   ['r-gusto','r-palabra','r-nota'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',guardarBorrador);});
