@@ -200,6 +200,22 @@
   .gal-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .gal-fav{position:absolute;top:6px;right:6px;background:rgba(255,255,255,.85);border-radius:999px;width:24px;height:24px;display:grid;place-items:center;font-size:13px;}
   .gal-info{padding:8px 10px;} .gal-info .gt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .gal-info .gd{font-size:11px;color:var(--suave);}
+  /* Calendario de visitas (Galería) */
+  .cal{background:var(--panel);border:1px solid var(--linea);box-shadow:var(--sombra);border-radius:14px;padding:12px 12px 10px;margin-bottom:14px;}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+  .cal-head b{font-size:15px;text-transform:capitalize;}
+  .cal-nav{border:1px solid var(--linea);background:var(--crema);color:var(--texto);width:34px;height:34px;border-radius:10px;font-size:17px;line-height:1;cursor:pointer;flex:0 0 auto;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-dow{font-size:10px;color:var(--suave);text-align:center;padding-bottom:2px;letter-spacing:.3px;}
+  .cal-day{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;color:var(--texto);position:relative;}
+  .cal-day.empty{visibility:hidden;}
+  .cal-day.dim{color:var(--suave);opacity:.45;}
+  .cal-day.visit{background:var(--acento-suave);font-weight:600;}
+  .cal-day.has-photos{cursor:pointer;}
+  .cal-day.sel{background:var(--acento);color:#fff;}
+  .cal-day.today{outline:2px solid var(--acento);outline-offset:-2px;}
+  .cal-count{position:absolute;top:3px;right:5px;font-size:9px;font-weight:700;color:var(--acento);}
+  .cal-day.sel .cal-count{color:#fff;}
   .foto-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .foto-prev{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--linea);}
   .foto-prev img{width:100%;height:100%;object-fit:cover;} .foto-prev .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:999px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;}
@@ -353,6 +369,8 @@
       <button class="btn-actualizar" style="margin-left:auto" onclick="agregarFotoLibre()">＋ Foto</button>
       <button class="btn-actualizar" onclick="agregarFotoLibreEnlace()" title="Pegar enlace de Drive">🔗</button></div>
     <div class="chips" id="g-seccion" style="margin-bottom:10px"></div>
+    <button class="btn-full" id="g-cal-toggle" onclick="toggleGalCal()" style="margin-bottom:12px"><span class="ico">📅</span> <span id="g-cal-label">Ver calendario</span></button>
+    <div id="g-calendario"></div>
     <div id="g-pendientes"></div>
     <input type="text" class="buscar" id="g-buscar" placeholder="Buscar por título, tag o descripción…" oninput="renderGaleria()" />
     <div class="chips scroll" id="g-filtros" style="margin-bottom:14px;"></div>
@@ -1043,6 +1061,7 @@ async function procesarFotos(entry){
 
 /* ===== Galería ===== */
 let galFiltro='todas'; let galSeccion='emma';
+let galCalOpen=false; let galCalMonth=null; let galFecha=null;
 const GSECCIONES=[['emma','🧒 Fotos de Emma'],['boletas','🧾 Boletas']];
 function esBoleta(p){return (p.tags||[]).some(t=>/boleta|gasto/i.test(String(t)));}
 function setGalSeccion(s){galSeccion=s;galFiltro='todas';renderGaleria();}
@@ -1058,18 +1077,56 @@ function fotoMatch(p,key){
 function renderPendientes(){const el=$('g-pendientes');if(!el||!(window.EmmaPhotos&&EmmaPhotos.queueCount)){if(el)el.innerHTML='';return;}
   EmmaPhotos.queueCount().then(n=>{if(!el)return;el.innerHTML=n>0?`<div class="aviso" style="display:flex;align-items:center;gap:10px;justify-content:space-between">⏳ ${n} foto${n>1?'s':''} por subir <button class="mini" onclick="reintentarSubidas()">Reintentar</button></div>`:'';}).catch(()=>{});}
 function reintentarSubidas(){if(!(window.EmmaPhotos&&EmmaPhotos.flushQueue))return;toast('Reintentando subidas…');EmmaPhotos.flushQueue().then(n=>{toast(n?('Subida'+(n>1?'s':'')+' '+n+' ✓'):'Aún sin conexión a Drive');renderGaleria();rebuildProfile();}).catch(()=>toast('No se pudo, intenta luego'));}
+/* ===== Calendario de visitas (Galería) ===== */
+function ymHoy(){return hoyISO().slice(0,7);}
+function toggleGalCal(){galCalOpen=!galCalOpen;if(galCalOpen&&!galCalMonth)galCalMonth=ymHoy();renderGaleria();}
+function galCalNav(d){if(!galCalMonth)galCalMonth=ymHoy();const[y,m]=galCalMonth.split('-').map(Number);const dt=new Date(y,m-1+d,1);galCalMonth=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');renderCalendario();}
+function selectGalFecha(iso){if(galFecha===iso){galFecha=null;}else{galFecha=iso;galFiltro='todas';}renderGaleria();}
+function clearGalFecha(){galFecha=null;renderGaleria();}
+// Días con "visita" (momento registrado o foto) y cuántas fotos por fecha
+function _statsFechas(){const map={};
+  (EmmaStore.getEntries()||[]).forEach(e=>{if(e.deleted||!e.date)return;(map[e.date]=map[e.date]||{p:0,v:false}).v=true;});
+  (EmmaStore.getPhotos()||[]).forEach(p=>{if(p.deleted||!p.date||esBoleta(p))return;const s=(map[p.date]=map[p.date]||{p:0,v:false});s.p++;s.v=true;});
+  return map;}
+function renderCalendario(){const cont=$('g-calendario');if(!cont)return;
+  if(!galCalOpen||galSeccion==='boletas'){cont.innerHTML='';return;}
+  if(!galCalMonth)galCalMonth=ymHoy();
+  const[y,m]=galCalMonth.split('-').map(Number);const stats=_statsFechas();
+  const primero=new Date(y,m-1,1);const diasMes=new Date(y,m,0).getDate();
+  const off=(primero.getDay()+6)%7;const hoy=hoyISO();
+  const dow=['L','M','X','J','V','S','D'];
+  let cells='';for(let i=0;i<off;i++)cells+='<div class="cal-day empty"></div>';
+  let mesN=0;
+  for(let d=1;d<=diasMes;d++){const iso=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const s=stats[iso]||{p:0,v:false};if(s.v)mesN++;
+    const cls=['cal-day'];cls.push(s.v?'visit':'dim');if(s.p>0)cls.push('has-photos');if(iso===galFecha)cls.push('sel');if(iso===hoy)cls.push('today');
+    const oc=s.p>0?` onclick="selectGalFecha('${iso}')"`:(s.v?` onclick="toast('Ese día viste a Emma, pero sin fotos')"`:'');
+    cells+=`<div class="${cls.join(' ')}"${oc}>${d}${s.p>0?`<span class="cal-count">${s.p}</span>`:''}</div>`;}
+  const totV=Object.values(stats).filter(s=>s.v).length;
+  const mesLbl=primero.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  const mesSolo=primero.toLocaleDateString('es-ES',{month:'long'});
+  cont.innerHTML=`<div class="cal">
+    <div class="cal-head"><button class="cal-nav" onclick="galCalNav(-1)" aria-label="Mes anterior">‹</button><b>${esc(mesLbl)}</b><button class="cal-nav" onclick="galCalNav(1)" aria-label="Mes siguiente">›</button></div>
+    <div class="cal-grid">${dow.map(x=>`<div class="cal-dow">${x}</div>`).join('')}${cells}</div>
+    <div class="pi-meta" style="margin-top:9px;text-align:center">👶 ${mesN} día${mesN!==1?'s':''} con Emma en <span style="text-transform:capitalize">${esc(mesSolo)}</span> · ${totV} en total</div></div>`;}
 function renderGaleria(){
   renderPendientes();
   $('g-seccion').innerHTML=GSECCIONES.map(([k,l])=>`<span class="chip${k===galSeccion?' on':''}" onclick="setGalSeccion('${k}')">${l}</span>`).join('');
   $('g-filtros').innerHTML=GFILTROS.map(([k,l])=>`<span class="chip${k===galFiltro?' on':''}" onclick="setGalFiltro('${k}')">${l}</span>`).join('');
+  const tgl=$('g-cal-toggle'),lbl=$('g-cal-label');
+  if(tgl)tgl.style.display=galSeccion==='boletas'?'none':'';
+  if(lbl)lbl.textContent=galCalOpen?'Ocultar calendario':'Ver calendario';
+  renderCalendario();
   const q=normTxt($('g-buscar').value.trim());
   let fotos=EmmaStore.getPhotos().slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   fotos=fotos.filter(p=>galSeccion==='boletas'?esBoleta(p):!esBoleta(p));
   fotos=fotos.filter(p=>fotoMatch(p,galFiltro));
   if(q)fotos=fotos.filter(p=>normTxt((p.tags||[]).join(' ')+' '+p.title+' '+p.description).includes(q));
+  if(galFecha)fotos=fotos.filter(p=>p.date===galFecha);
+  const banner=galFecha?`<div class="aviso" style="display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:12px">📅 Fotos del ${esc(fechaCorta(galFecha))} <button class="mini" onclick="clearGalFecha()">✕ Ver todas</button></div>`:'';
   const grid=$('g-grid');
-  if(!fotos.length){grid.innerHTML='<div class="empty"><div class="et">Sin fotos aún.</div><div class="es">Agrega fotos al registrar un momento, o toca “＋ Foto”.</div><button class="guardar" style="max-width:240px;margin:0 auto" onclick="agregarFotoLibre()">Agregar foto</button></div>';return;}
-  grid.innerHTML='<div class="gal-grid">'+fotos.map(p=>`<div class="gal-card" onclick="openSheet('${p.id}')">
+  if(!fotos.length){grid.innerHTML=banner+(galFecha?'<div class="empty"><div class="et">Sin fotos ese día.</div><div class="es">Ese día no hay fotos guardadas.</div></div>':'<div class="empty"><div class="et">Sin fotos aún.</div><div class="es">Agrega fotos al registrar un momento, o toca “＋ Foto”.</div><button class="guardar" style="max-width:240px;margin:0 auto" onclick="agregarFotoLibre()">Agregar foto</button></div>');return;}
+  grid.innerHTML=banner+'<div class="gal-grid">'+fotos.map(p=>`<div class="gal-card" onclick="openSheet('${p.id}')">
     <div class="gal-thumb" data-thumb="${p.id}">📷${p.isFavorite?'<span class="gal-fav">⭐</span>':''}</div>
     <div class="gal-info"><div class="gt">${esc(p.title||'Foto')}</div><div class="gd">${fechaCorta(p.date)}${(p.tags&&p.tags[0])?' · '+esc(p.tags[0]):''}</div></div></div>`).join('')+'</div>';
   // cargar thumbnails (en memoria) si Drive está conectado
