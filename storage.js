@@ -33,10 +33,24 @@ const EmmaStore = (function () {
     catch (e) {}
   }
 
-  // Datos fijos de Emma
+  // Ajustes del niño/a (multiusuario). Por DEFECTO = Emma, para no alterar la cuenta existente:
+  // mientras no haya 'childSettings' guardado, todo sigue mostrando Emma (niña, cálido).
+  const KEY_CHILD = 'childSettings';
+  const CHILD_DEFAULT = { nombre: 'Emma Mory Verdi', nacimiento: '2024-07-17', genero: 'nina' };
+  function hasChild() { try { const s = JSON.parse(localStorage.getItem(KEY_CHILD)); return !!(s && s.nombre); } catch (e) { return false; } }
+  function getChild() { try { const s = JSON.parse(localStorage.getItem(KEY_CHILD)); return (s && s.nombre) ? s : CHILD_DEFAULT; } catch (e) { return CHILD_DEFAULT; } }
+  function setChild(patch) {
+    const cur = hasChild() ? getChild() : {};
+    const s = Object.assign({}, cur, patch); s.updatedAt = new Date().toISOString();
+    _write(KEY_CHILD, s); _notify(); return s;
+  }
+  function _setChildRaw(s) { if (s && s.nombre) _write(KEY_CHILD, s); }   // aplicar desde la nube sin notificar
+  // Acceso dinámico: EmmaStore.EMMA.nombre / .nacimiento / .genero sigue funcionando en todo el código.
   const EMMA = {
-    nombre: 'Emma Mory Verdi',
-    nacimiento: '2024-07-17'
+    get nombre() { return getChild().nombre; },
+    get nacimiento() { return getChild().nacimiento; },
+    get genero() { return getChild().genero || 'nina'; },
+    get id() { return getChild().id || ''; }
   };
 
   /* ============================================================
@@ -416,6 +430,8 @@ const EmmaStore = (function () {
   /* ---------- API pública ---------- */
   return {
     EMMA,
+    // ajustes del niño/a (multiusuario)
+    getChild, setChild, hasChild, _setChildRaw,
     // persistencia
     getEntries, saveEntry, updateEntry, deleteEntry,
     getPermanentNotes, savePermanentNotes,

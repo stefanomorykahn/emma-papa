@@ -45,12 +45,33 @@
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error_description || e.msg || 'No se pudo iniciar sesión'); }
       const d = await r.json();
+      _handleAccountSwitch(d.user && d.user.id);
       session = { access_token: d.access_token, refresh_token: d.refresh_token,
         expires_at: Date.now() + (d.expires_in || 3600) * 1000,
         user_id: d.user && d.user.id, email: (d.user && d.user.email) || email };
       _saveSession();
       await EmmaSync.sync();
       return true;
+    },
+
+    // Crear cuenta nueva (correo + contraseña). Devuelve {user_id, session}. Si el proyecto
+    // exige confirmar el correo, session=false y hay que confirmar antes de entrar.
+    async signUp(email, password) {
+      const r = await fetch(URL_BASE + '/auth/v1/signup', {
+        method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { throw new Error(d.msg || d.error_description || d.error || 'No se pudo crear la cuenta.'); }
+      if (d.access_token) {
+        _handleAccountSwitch(d.user && d.user.id);
+        session = { access_token: d.access_token, refresh_token: d.refresh_token,
+          expires_at: Date.now() + (d.expires_in || 3600) * 1000,
+          user_id: d.user && d.user.id, email: (d.user && d.user.email) || email };
+        _saveSession();
+        return { user_id: session.user_id, session: true };
+      }
+      return { user_id: (d.user && d.user.id) || d.id || '', session: false };
     },
     signOut() { session = null; localStorage.removeItem(KEY_AUTH); _setState('signed-out'); },
 
@@ -153,6 +174,18 @@
   };
 
   /* ---------- Sesión ---------- */
+  // Cambio de cuenta en el MISMO dispositivo: si el usuario que entra es DISTINTO al último,
+  // limpia los datos locales del anterior antes de bajar los suyos. Solo limpia cuando ya
+  // había un uid guardado y es diferente → la primera vez (uid desconocido) NO borra nada,
+  // así la cuenta existente (Emma) nunca se toca por este mecanismo.
+  function _handleAccountSwitch(uid) {
+    let last = null; try { last = localStorage.getItem('emmaLastUid'); } catch (e) {}
+    if (last && uid && last !== uid) {
+      try { if (window.EmmaStore && EmmaStore.clearAll) EmmaStore.clearAll(); } catch (e) {}
+      try { ['childSettings', 'emma_todo_categories', 'emma_profile_corrections', 'emmaProfileData', 'emmaDraftQuick', 'emmaSeeded'].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    }
+    try { if (uid) localStorage.setItem('emmaLastUid', uid); } catch (e) {}
+  }
   function _loadSession() { try { return JSON.parse(localStorage.getItem(KEY_AUTH)); } catch (e) { return null; } }
   function _saveSession() { localStorage.setItem(KEY_AUTH, JSON.stringify(session)); }
   function _setState(s) { EmmaSync.state = s; if (typeof EmmaSync.onStateChange === 'function') EmmaSync.onStateChange(s); }
@@ -331,6 +364,21 @@
       fromRow: r => ({
         id: r.id, name: r.name || '', category: r.category || '', address: r.address || '',
         hours: r.hours || '', notes: r.notes || '', createdAt: r.created_at || '', updatedAt: r.updated_at || ''
+      })
+    },
+    { // child_settings (ajustes del niño/a, 1 fila por usuario, id = user_id) — OPCIONAL
+      path: '/rest/v1/child_settings',
+      optional: true,
+      localAll: () => { const s = EmmaStore.getChild && EmmaStore.getChild(); return (s && s.nombre && s.id) ? [s] : []; },
+      setAll: a => { if (a && a[0] && a[0].nombre) EmmaStore._setChildRaw(a[0]); },
+      tombs: () => ({}), setTombs: () => {},
+      toRow: (s, owner) => ({
+        id: owner, user_id: owner, name: s.nombre || '', gender: s.genero || 'nina', birthdate: s.nacimiento || null,
+        created_at: s.createdAt || null, updated_at: s.updatedAt || new Date().toISOString(), deleted: false
+      }),
+      fromRow: r => ({
+        id: r.id, nombre: r.name || '', genero: r.gender || 'nina', nacimiento: r.birthdate || '',
+        createdAt: r.created_at || '', updatedAt: r.updated_at || ''
       })
     }
   ];

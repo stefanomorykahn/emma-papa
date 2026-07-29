@@ -55,6 +55,21 @@
       --caja-bg:#2b2417; --caja-linea:#5c4a28; --caja-fg:#e2b45f; --det-linea:#3a3226;
     }
   }
+  /* Tema NIÑO (azul) · se activa con data-genero="nino". Niña usa la paleta cálida por defecto. */
+  :root[data-genero="nino"]{
+    --crema:#f3f6fb; --panel:#ffffff; --linea:#e2e8f2; --acento:#5183c4; --acento-2:#6a9ad4; --acento-suave:#dde8f6;
+    --texto:#2a3444; --suave:#7a8698;
+  }
+  :root[data-genero="nino"][data-tema="oscuro"]{
+    --crema:#0e131b; --panel:#161d28; --linea:#26303e; --acento:#7fa8dd; --acento-2:#93b8e8; --acento-suave:#243247;
+    --texto:#e9eef6; --suave:#94a2b4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root[data-genero="nino"]:not([data-tema="claro"]):not([data-tema="oscuro"]){
+      --crema:#0e131b; --panel:#161d28; --linea:#26303e; --acento:#7fa8dd; --acento-2:#93b8e8; --acento-suave:#243247;
+      --texto:#e9eef6; --suave:#94a2b4;
+    }
+  }
   /* Accesibilidad: contorno claro al navegar con teclado. */
   a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,.chip:focus-visible{outline:2px solid var(--acento);outline-offset:2px;}
   svg.ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;}
@@ -259,7 +274,7 @@
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="marca"><span class="logo">E</span><span>Emma &amp; Papá</span></div>
+    <div class="marca"><span class="logo" id="marcaLogo">E</span><span id="marcaTxt">Emma &amp; Papá</span></div>
     <div class="estado-guardado" id="estadoGuardado"><span class="punto"></span> Guardado</div>
   </div>
 
@@ -494,14 +509,22 @@
 </div>
 
 <div class="login-overlay" id="loginOverlay">
-  <div class="login-card"><div class="login-logo">E</div><h2>Emma &amp; Papá</h2>
-    <p class="login-sub">Inicia sesión para sincronizar entre tus dispositivos.</p>
+  <div class="login-card"><div class="login-logo" id="loginLogo">🍼</div><h2 id="loginTitulo">Emma &amp; Papá</h2>
+    <p class="login-sub" id="loginSub">Inicia sesión para sincronizar entre tus dispositivos.</p>
+    <div id="signupExtra" style="display:none;text-align:left">
+      <div class="campo"><label>Nombre del niño/a</label><input type="text" id="suNombre" placeholder="Ej. Mateo" /></div>
+      <div class="campo"><label>Es…</label>
+        <div class="chips"><span class="chip on" id="gen-nina" onclick="setSignupGenero('nina')">👧 Niña</span><span class="chip" id="gen-nino" onclick="setSignupGenero('nino')">👦 Niño</span></div></div>
+      <div class="campo"><label>Fecha de nacimiento</label><input type="date" id="suNacimiento" /></div>
+    </div>
     <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" />
     <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" />
     <div class="login-error" id="loginError"></div>
     <button class="guardar" id="loginBtn" onclick="hacerLogin()">Entrar</button>
+    <button class="guardar" id="signupBtn" onclick="hacerRegistro()" style="display:none">Crear cuenta</button>
     <button class="mini" style="margin-top:8px" onclick="continuarSinSync()">Continuar sin sincronizar</button>
-    <p class="login-nota"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a> · tus datos se guardan en este dispositivo.</p>
+    <p class="login-nota" style="margin-top:12px"><a href="#" id="toggleAuth" onclick="toggleAuthMode();return false;">¿No tienes cuenta? Crea una</a></p>
+    <p class="login-nota" id="loginRecuperar"><a href="#" onclick="recuperarPwd();return false;">¿Olvidaste tu contraseña?</a> · tus datos se guardan en este dispositivo.</p>
   </div>
 </div>
 
@@ -1495,7 +1518,7 @@ function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new 
   if(d.emmaDiaryEntries)EmmaStore._setEntriesRaw(d.emmaDiaryEntries);if(d.emmaNotes)EmmaNotes._setRaw(d.emmaNotes);if(d.emmaProfileItems)EmmaStore._setProfileItemsRaw(d.emmaProfileItems);if(d.emmaAnalyses)EmmaStore._setAnalysesRaw(d.emmaAnalyses);if(d.emmaPhotos)EmmaStore._setPhotosRaw(d.emmaPhotos);if(d.emmaExpenses)EmmaStore._setExpensesRaw(d.emmaExpenses);if(d.emmaTodoItems)EmmaStore._setTodoItemsRaw(d.emmaTodoItems);if(Array.isArray(d.emmaTodoCategories)&&d.emmaTodoCategories.length)setTodoCats(d.emmaTodoCategories);if(Array.isArray(d.emmaProfileCorrections))try{localStorage.setItem('emma_profile_corrections',JSON.stringify(d.emmaProfileCorrections));}catch(e){}
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
-  if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
+  if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(!EmmaStore.hasChild()&&window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
 function renderAjustes(){renderCategorias();renderTodoCategorias();renderCorrecciones();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
@@ -1619,8 +1642,53 @@ document.addEventListener('visibilitychange',()=>{
     const now=Date.now(); if(now-_lastVisSync>30000){_lastVisSync=now;EmmaSync.sync();}
   }
 });
+/* ===== Identidad del niño/a (multiusuario) + registro ===== */
+const BRAND='Mi Peque';  // nombre genérico placeholder (se cambiará luego)
+function aplicarGenero(){const g=(EmmaStore.EMMA&&EmmaStore.EMMA.genero)||'nina';if(g==='nino')document.documentElement.setAttribute('data-genero','nino');else document.documentElement.removeAttribute('data-genero');}
+function aplicarIdentidad(){
+  aplicarGenero();
+  try{document.title=BRAND;}catch(e){}
+  const nom=(EmmaStore.EMMA&&EmmaStore.EMMA.nombre)||'';
+  const lg=$('marcaLogo');if(lg)lg.textContent=((nom.trim()[0]||'🍼')+'').toUpperCase();
+  const mt=$('marcaTxt');if(mt)mt.textContent=BRAND;
+  const lt=$('loginTitulo');if(lt)lt.textContent=BRAND;
+}
+let authMode='login',signupGenero='nina';
+function setSignupGenero(g){signupGenero=g;const a=$('gen-nina'),b=$('gen-nino');if(a)a.classList.toggle('on',g==='nina');if(b)b.classList.toggle('on',g==='nino');}
+function toggleAuthMode(){authMode=(authMode==='login')?'signup':'login';const su=authMode==='signup';
+  $('signupExtra').style.display=su?'block':'none';
+  $('loginBtn').style.display=su?'none':'block';
+  $('signupBtn').style.display=su?'block':'none';
+  $('loginSub').textContent=su?'Crea tu cuenta y empieza el diario de tu peque.':'Inicia sesión para sincronizar entre tus dispositivos.';
+  $('toggleAuth').textContent=su?'¿Ya tienes cuenta? Inicia sesión':'¿No tienes cuenta? Crea una';
+  $('loginRecuperar').style.display=su?'none':'block';
+  $('loginError').textContent='';}
+function hacerRegistro(){
+  const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';
+  const nombre=$('suNombre').value.trim(),nac=$('suNacimiento').value;
+  if(!nombre){err.textContent='Escribe el nombre del niño/a.';return;}
+  if(!nac){err.textContent='Elige la fecha de nacimiento.';return;}
+  if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
+  if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return;}
+  $('signupBtn').disabled=true;$('signupBtn').textContent='Creando…';
+  EmmaSync.signUp(email,pass).then(res=>{
+    if(res&&res.session){
+      EmmaStore.setChild({nombre:nombre,nacimiento:nac,genero:signupGenero,id:res.user_id,createdAt:new Date().toISOString()});
+      aplicarIdentidad();
+      try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}
+      $('loginOverlay').classList.remove('show');$('loginPass').value='';
+      rebuildProfile();refrescarVista();actualizarEstado();
+      if(window.EmmaSync)EmmaSync.sync();
+      toast('¡Cuenta creada! 🎉');
+    }else{
+      err.textContent='Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.';
+      authMode='signup';toggleAuthMode();
+    }
+  }).catch(e=>err.textContent=(e&&e.message)||'No se pudo crear la cuenta.')
+  .finally(()=>{$('signupBtn').disabled=false;$('signupBtn').textContent='Crear cuenta';});
+}
 function hacerLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value,err=$('loginError');err.textContent='';if(!email||!pass){err.textContent='Escribe correo y contraseña.';return;}
-  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}$('loginOverlay').classList.remove('show');$('loginPass').value='';rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';EmmaSync.signIn(email,pass).then(()=>{try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}$('loginOverlay').classList.remove('show');$('loginPass').value='';aplicarIdentidad();rebuildProfile();refrescarVista();toast('Sesión iniciada ✓');if(pendientePwd){pendientePwd=false;setTimeout(()=>abrirCambioPwd(),350);}}).catch(e=>err.textContent=e.message||'No se pudo iniciar sesión.').finally(()=>{$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';});}
 function cerrarSesion(){if(!confirm('¿Cerrar sesión? Los datos quedan en este dispositivo.'))return;EmmaSync.signOut();renderAjustes();$('loginOverlay').classList.add('show');}
 // La sesión caducó durante el sync (no es error de red): avisa y abre el login.
 function avisarSesionExpirada(){actualizarEstado();if(_skipLogin()){renderAjustes();return;}$('loginError').textContent='Tu sesión expiró, vuelve a iniciar sesión.';$('loginOverlay').classList.add('show');toast('Tu sesión expiró');renderAjustes();}
@@ -1656,7 +1724,7 @@ function recuperarPwd(){const email=$('loginEmail').value.trim(),err=$('loginErr
   EmmaSync.recoverPassword(email).then(()=>toast('Te enviamos un correo para recuperar tu contraseña 📧')).catch(e=>{err.textContent=(e&&e.message)||'No se pudo enviar el correo.';});}
 function sincronizarAhora(){if(!EmmaSync.isSignedIn()){$('loginOverlay').classList.add('show');return;}toast('Sincronizando…');EmmaSync.sync().then(()=>{renderAjustes();refrescarVista();});}
 function refrescarVista(){const a=document.querySelector('.vista.activa');if(!a)return;const id=a.id.replace('v-','');if(id==='inicio')renderInicio();if(id==='historial')renderHistorial();if(id==='perfil')renderPerfil();if(id==='notas')renderNotas();if(id==='ajustes')renderAjustes();if(id==='galeria')renderGaleria();}
-window.onEmmaSynced=function(){if(window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();refrescarVista();};
+window.onEmmaSynced=function(){if(!EmmaStore.hasChild()&&window.EmmaSeed&&EmmaSeed.dedupeInitialItems)EmmaSeed.dedupeInitialItems();aplicarIdentidad();refrescarVista();};
 
 /* ===== Auto-backup a Drive (red de seguridad) ===== */
 function autoBackup(){
@@ -1673,7 +1741,9 @@ function cambiarTema(){const orden=['auto','claro','oscuro'];const actual=localS
 /* ===== Init ===== */
 function init(){
   aplicarTema();
-  if(window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
+  aplicarIdentidad();
+  // El seed son los gustos de Emma: solo para la cuenta original (sin childSettings). Las cuentas nuevas arrancan vacías.
+  if(!EmmaStore.hasChild()&&window.EmmaSeed){EmmaSeed.loadSeedIfNeeded();EmmaSeed.dedupeInitialItems();}
   $('r-date').value=hoyISO();$('nt-date').value=hoyISO();
   refrescarChipsRapido();restaurarBorrador();refrescarChipsRapido();validarRapido();
   ['r-gusto','r-palabra','r-nota'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',guardarBorrador);});

@@ -42,6 +42,7 @@
 !/ai-schema.sql
 !/photos-schema.sql
 !/todo-schema.sql
+!/child-settings-schema.sql
 
 # Edge Function de IA (no expone secretos; las claves van como secrets en Supabase)
 !/supabase
