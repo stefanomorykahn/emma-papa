@@ -47,6 +47,15 @@
 !/supabase
 !/supabase/**
 
+# Despliegue en VPS Contabo (emma.xplain.pe) — sin secretos
+!/compose.yml
+!/.env.example
+!/DEPLOY.md
+!/docker
+!/docker/**
+!/scripts
+!/scripts/**
+
 # Nunca subir basura del sistema
 .DS_Store
 **/.DS_Store

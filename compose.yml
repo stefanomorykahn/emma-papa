@@ -1,0 +1,18 @@
+# Emma & Papá · PWA estática servida por Nginx (detrás del Nginx del host en Contabo).
+# Los archivos se sirven por bind-mount de solo lectura → `git pull` actualiza el sitio al instante.
+# Publicado solo en localhost; el Nginx del host hace de reverse-proxy con SSL para emma.xplain.pe.
+services:
+  emma-nginx:
+    image: nginx:alpine
+    container_name: emma-nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8140}:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
