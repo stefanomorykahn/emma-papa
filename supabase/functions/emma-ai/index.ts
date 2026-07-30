@@ -3,13 +3,13 @@
 // ------------------------------------------------------------
 // Proxy SEGURO hacia OpenAI. Multiusuario:
 //   - ai_mode del usuario (tabla user_plans): 'compartida' | 'propia' | 'off'.
-//       compartida → usa la OPENAI_API_KEY del dueño (gratis para ese usuario), con TOPE por usuario.
-//       propia     → usa la key que el usuario mandó en el body (userKey).
-//       off / sin fila → IA desactivada (debe poner su propia key o pedir el plan).
-//   - Registra uso en ai_usage_logs; guarda análisis en emma_entry_analysis.
+//       compartida ? usa la OPENAI_API_KEY del dueno (gratis para ese usuario), con TOPE por usuario.
+//       propia     ? usa la key que el usuario mando en el body (userKey).
+//       off / sin fila ? IA desactivada (debe poner su propia key o pedir el plan).
+//   - Registra uso en ai_usage_logs; guarda analisis en emma_entry_analysis.
 //
 // Deploy:  supabase functions deploy emma-ai
-// Secrets: OPENAI_API_KEY (la del dueño, para modo 'compartida').
+// Secrets: OPENAI_API_KEY (la del dueno, para modo 'compartida').
 // ============================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -23,7 +23,7 @@ const MODEL_WEEKLY = Deno.env.get("OPENAI_MODEL_WEEKLY") ?? "gpt-5.4-mini";
 
 const PRICE_IN = Number(Deno.env.get("OPENAI_PRICE_IN") ?? "0.00005");
 const PRICE_OUT = Number(Deno.env.get("OPENAI_PRICE_OUT") ?? "0.0004");
-// Tope de gasto (USD/mes) por usuario cuando usa la key del dueño (modo 'compartida').
+// Tope de gasto (USD/mes) por usuario cuando usa la key del dueno (modo 'compartida').
 const SHARED_MONTHLY_LIMIT = Number(Deno.env.get("AI_SHARED_MONTHLY_LIMIT_USD") ?? "2");
 // Tope alto de respaldo para usuarios con su propia key (protege ante errores; ellos pagan).
 const OWN_MONTHLY_LIMIT = Number(Deno.env.get("AI_MONTHLY_LIMIT_USD") ?? "50");
@@ -39,12 +39,12 @@ function json(body: unknown, status = 200) {
 
 function quien(name?: string, gender?: string) {
   const n = (name || "").trim();
-  const art = gender === "nino" ? "un niño pequeño" : "una niña pequeña";
+  const art = gender === "nino" ? "un nino pequeno" : "una nina pequena";
   return n ? `${art} (${n})` : art;
 }
 function analyzeSystem(name?: string, gender?: string) {
-  return `Eres un extractor de datos. Recibes UNA observación sobre ${quien(name, gender)}.
-Devuelve SOLO JSON válido con esta forma exacta:
+  return `Eres un extractor de datos. Recibes UNA observacion sobre ${quien(name, gender)}.
+Devuelve SOLO JSON valido con esta forma exacta:
 {"mood":"","foods":[{"name":"","category":"food","sentiment":"liked|neutral|disliked|unknown","evidence":"","confidence":0}],
 "fruits":[{"name":"","sentiment":"liked|neutral|disliked|unknown","evidence":"","confidence":0}],
 "activities":[{"name":"","sentiment":"liked|neutral|disliked|unknown","evidence":"","confidence":0}],
@@ -56,16 +56,16 @@ Devuelve SOLO JSON válido con esta forma exacta:
 "places":[{"name":"","sentiment":"liked|neutral|disliked|unknown","evidence":"","confidence":0}],
 "people":[{"name":"","evidence":"","confidence":0}],
 "important_memory":"","summary":""}
-Reglas: responde solo JSON. No des consejos ni diagnósticos. No inventes: si no está en el texto, deja el array vacío o usa "unknown" con confidence bajo. Extrae solo lo presente. Normaliza nombres simples y en minúscula ("mango","pollo","jugar con agua","la abejita").`;
+Reglas: responde solo JSON. No des consejos ni diagnosticos. No inventes: si no esta en el texto, deja el array vacio o usa "unknown" con confidence bajo. Extrae solo lo presente. Normaliza nombres simples y en minuscula ("mango","pollo","jugar con agua","la abejita").`;
 }
 function recommendSystem(name?: string, gender?: string) {
-  return `Eres un asistente práctico de crianza para ${quien(name, gender)}. Devuelve SOLO JSON: un array de 3 a 5 objetos
+  return `Eres un asistente practico de crianza para ${quien(name, gender)}. Devuelve SOLO JSON: un array de 3 a 5 objetos
 [{"title":"","reason":"","duration_minutes":10,"materials":[],"goal":"","steps":[],"why":"","safety_note":"","save_as_entry":{"activity":"","category":""}}].
 Usa el perfil (gustos, rechazos, canciones, edad). Actividades apropiadas para su edad. No recomiendes pantallas como actividad principal. Sin texto fuera del JSON. Sin sermones.`;
 }
-const WEEKLY_SYSTEM = `Analiza los últimos 7 días de un niño/a pequeño/a. Devuelve SOLO JSON:
+const WEEKLY_SYSTEM = `Analiza los ultimos 7 dias de un nino/a pequeno/a. Devuelve SOLO JSON:
 {"changes":[],"patterns":[],"new_likes":[],"new_dislikes":[],"repeat_activities":[],"repeat_foods":[],"watch":[],"recommendations":[]}.
-No hagas diagnóstico médico. Si algo parece médico o preocupante, incluye en "watch" el texto "considerar consultar con pediatra". Sin texto fuera del JSON.`;
+No hagas diagnostico medico. Si algo parece medico o preocupante, incluye en "watch" el texto "considerar consultar con pediatra". Sin texto fuera del JSON.`;
 
 async function monthSpend(sb: any, userId: string): Promise<number> {
   const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
@@ -111,26 +111,26 @@ Deno.serve(async (req) => {
 
     // Modo de IA del usuario
     const { data: plan } = await sb.from("user_plans").select("ai_mode").eq("user_id", userId).maybeSingle();
-    const mode = plan?.ai_mode || "propia"; // sin fila → debe usar su propia key
+    const mode = plan?.ai_mode || "propia"; // sin fila ? debe usar su propia key
 
     // Elegir la API key + tope
     let apiKey = "", limit = OWN_MONTHLY_LIMIT;
-    if (mode === "off") return json({ error: "La IA está desactivada para tu cuenta.", blocked: true, ai_mode: mode }, 403);
+    if (mode === "off") return json({ error: "La IA esta desactivada para tu cuenta.", blocked: true, ai_mode: mode }, 403);
     if (mode === "compartida") { apiKey = OWNER_OPENAI_KEY; limit = SHARED_MONTHLY_LIMIT; }
     else { // 'propia'
       if (!userKey) return json({ error: "Configura tu propia API key de OpenAI en Ajustes para usar la IA.", need_key: true, ai_mode: mode }, 400);
       apiKey = userKey; limit = OWN_MONTHLY_LIMIT;
     }
 
-    // Tope de gasto mensual (por usuario). Para 'compartida' protege la factura del dueño.
+    // Tope de gasto mensual (por usuario). Para 'compartida' protege la factura del dueno.
     const spent = await monthSpend(sb, userId);
-    if (spent >= limit) return json({ error: "Límite mensual de IA alcanzado.", blocked: true, month_spend: spent, ai_mode: mode }, 402);
+    if (spent >= limit) return json({ error: "Limite mensual de IA alcanzado.", blocked: true, month_spend: spent, ai_mode: mode }, 402);
 
     let model = MODEL_ANALYZE, system = analyzeSystem(childName, childGender), userMsg = "";
-    if (action === "analyze") { model = MODEL_ANALYZE; system = analyzeSystem(childName, childGender); userMsg = `Fecha: ${payload.date}\nObservación: ${payload.text}`; }
+    if (action === "analyze") { model = MODEL_ANALYZE; system = analyzeSystem(childName, childGender); userMsg = `Fecha: ${payload.date}\nObservacion: ${payload.text}`; }
     else if (action === "recommend") { model = MODEL_RECOMMEND; system = recommendSystem(childName, childGender); userMsg = `Contexto: ${JSON.stringify(payload.context)}\nPerfil: ${JSON.stringify(payload.profile)}`; }
-    else if (action === "weekly") { model = MODEL_WEEKLY; system = WEEKLY_SYSTEM; userMsg = `Perfil: ${JSON.stringify(payload.profile)}\nÚltimos días: ${JSON.stringify(payload.recent)}\nNotas importantes: ${JSON.stringify(payload.important_notes)}`; }
-    else return json({ error: "Acción no válida" }, 400);
+    else if (action === "weekly") { model = MODEL_WEEKLY; system = WEEKLY_SYSTEM; userMsg = `Perfil: ${JSON.stringify(payload.profile)}\nUltimos dias: ${JSON.stringify(payload.recent)}\nNotas importantes: ${JSON.stringify(payload.important_notes)}`; }
+    else return json({ error: "Accion no valida" }, 400);
 
     const { content, usage } = await callOpenAI(apiKey, model, system, userMsg);
     let parsed: any; try { parsed = JSON.parse(content); } catch { parsed = {}; }

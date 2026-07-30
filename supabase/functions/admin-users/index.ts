@@ -1,13 +1,13 @@
 // ============================================================
 // Supabase Edge Function: admin-users
 // ------------------------------------------------------------
-// Panel de admin (SOLO el dueño). Con service_role:
-//   - list:    lista los usuarios (correo, alta, nombre del niño, modo de IA, gasto del mes).
+// Panel de admin (SOLO el dueno). Con service_role:
+//   - list:    lista los usuarios (correo, alta, nombre del nino, modo de IA, gasto del mes).
 //   - setMode: cambia el ai_mode de un usuario ('compartida' | 'propia' | 'off').
-// Seguridad: verifica que quien llama sea el ADMIN (su user_id). Cualquier otro → 403.
+// Seguridad: verifica que quien llama sea el ADMIN (su user_id). Cualquier otro ? 403.
 //
 // Deploy:  supabase functions deploy admin-users
-// Env opcional: ADMIN_UID (por defecto, el uid del dueño de abajo).
+// Env opcional: ADMIN_UID (por defecto, el uid del dueno de abajo).
 // ============================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "setMode") {
-      if (!userId || !MODES.includes(mode)) return json({ error: "Datos inválidos" }, 400);
+      if (!userId || !MODES.includes(mode)) return json({ error: "Datos invalidos" }, 400);
       const { error } = await sb.from("user_plans").upsert(
         { user_id: userId, ai_mode: mode, updated_at: new Date().toISOString() },
         { onConflict: "user_id" }
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, userId, ai_mode: mode });
     }
 
-    return json({ error: "Acción no válida" }, 400);
+    return json({ error: "Accion no valida" }, 400);
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500);
   }
