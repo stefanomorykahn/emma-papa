@@ -448,6 +448,15 @@
     <div id="aiBox"></div>
     <div id="driveBox"></div>
 
+    <div class="grupo-btns"><h3>Inteligencia artificial</h3>
+      <div id="ai-estado" class="cuenta" style="margin-bottom:10px">—</div>
+      <div class="campo" style="text-align:left;margin-bottom:8px"><label>Tu API key de OpenAI <span class="op">(opcional)</span></label>
+        <input type="password" id="ai-key" placeholder="sk-…" autocomplete="off" /></div>
+      <div style="display:flex;gap:8px"><button class="mini" onclick="guardarOpenAIKey()">Guardar key</button><button class="mini del" onclick="borrarOpenAIKey()">Quitar</button></div>
+      <p class="pi-meta" style="margin-top:8px">Con tu propia key controlas tu uso y costo. Consíguela en platform.openai.com.</p>
+      <button class="btn-full" id="ai-admin-btn" style="display:none;margin-top:12px" onclick="abrirAdminPanel()"><span class="ico">🛠️</span> Panel de administrador</button>
+    </div>
+
     <div class="grupo-btns"><h3>Categorías de gastos</h3>
       <div id="gastoCatsBox" class="chips" style="margin-bottom:8px"></div>
       <div style="display:flex;gap:8px"><input type="text" id="nuevaCatInput" placeholder="Nueva categoría…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoria();}" /><button class="mini" onclick="agregarCategoria()">＋ Agregar</button></div>
@@ -586,6 +595,15 @@
     <button class="btn-full" onclick="corrAccion('merge')"><span class="ico">🔗</span> Fusionar con otro ítem</button>
     <button class="btn-full" onclick="corrAccion('hide')"><span class="ico">🗑️</span> Quitar del perfil</button>
     <p class="login-nota"><a href="#" onclick="document.getElementById('corrOverlay').classList.remove('show');return false;">Cancelar</a></p>
+  </div>
+</div>
+
+<div class="login-overlay" id="adminOverlay">
+  <div class="login-card" style="max-width:540px;text-align:left">
+    <h2 style="font-size:19px;text-align:center">🛠️ Usuarios</h2>
+    <p class="pi-meta" style="text-align:center;margin:-4px 0 12px">Regálale tu IA (key) a quien quieras, o déjalo en su propia key.</p>
+    <div id="admin-lista" style="max-height:62vh;overflow:auto">Cargando…</div>
+    <p class="login-nota" style="text-align:center;margin-top:12px"><a href="#" onclick="document.getElementById('adminOverlay').classList.remove('show');return false;">Cerrar</a></p>
   </div>
 </div>
 
@@ -1519,7 +1537,48 @@ function importarBackup(ev){const f=ev.target.files[0];if(!f)return;const r=new 
   rebuildProfile();renderAjustes();toast('Backup importado ✨');}catch(e){alert('Archivo no válido.');}};r.readAsText(f);ev.target.value='';}
 function borrarTodo(){const n=EmmaStore.getEntries().length+EmmaNotes.getNotes().length;const r=prompt(`⚠️ Borrará ${n} registros/notas. No se puede deshacer.\n\nEscribe BORRAR para confirmar:`);
   if(r==='BORRAR'){EmmaStore.clearAll();localStorage.removeItem('emmaDraftQuick');if(!(EmmaStore.hasChild&&EmmaStore.hasChild())&&window.EmmaSeed)EmmaSeed.loadSeedIfNeeded();rebuildProfile();toast('Datos borrados');ir('inicio');}else if(r!==null)toast('Cancelado');}
-function renderAjustes(){renderCategorias();renderTodoCategorias();renderCorrecciones();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
+/* ===== IA por usuario + panel de admin ===== */
+const ADMIN_UID='12ff9a76-30fb-40a7-a9a1-939c7e0fff3a';
+function guardarOpenAIKey(){const k=($('ai-key').value||'').trim();if(k&&!/^sk-/.test(k))toast('Ojo: la key de OpenAI suele empezar con "sk-"');
+  if(k)localStorage.setItem('openaiUserKey',k);else localStorage.removeItem('openaiUserKey');toast(k?'API key guardada ✓':'API key quitada');renderIA();}
+function borrarOpenAIKey(){localStorage.removeItem('openaiUserKey');if($('ai-key'))$('ai-key').value='';toast('API key quitada');renderIA();}
+function fetchAiMode(){
+  if(!(window.EmmaSync&&EmmaSync.isSignedIn&&EmmaSync.isSignedIn()))return Promise.resolve(null);
+  return fetch(EmmaSync.urlBase()+'/rest/v1/user_plans?select=ai_mode&user_id=eq.'+EmmaSync.userId(),{headers:{apikey:EmmaSync.anonKey(),Authorization:'Bearer '+EmmaSync.accessToken()}})
+    .then(r=>r.json()).then(d=>(Array.isArray(d)&&d[0])?d[0].ai_mode:'propia').catch(()=>null);
+}
+function renderIA(){
+  const inp=$('ai-key');if(inp&&!inp.value){try{inp.value=localStorage.getItem('openaiUserKey')||'';}catch(e){}}
+  const btn=$('ai-admin-btn');if(btn)btn.style.display=(window.EmmaSync&&EmmaSync.userId&&EmmaSync.userId()===ADMIN_UID)?'flex':'none';
+  const est=$('ai-estado');if(!est)return;
+  if(!(window.EmmaSync&&EmmaSync.isSignedIn&&EmmaSync.isSignedIn())){est.innerHTML='Inicia sesión para usar la IA.';return;}
+  est.innerHTML='Comprobando tu plan de IA…';
+  fetchAiMode().then(m=>{
+    if(m==='compartida')est.innerHTML='✨ <b>Tienes la IA del plan (gratis)</b> — no necesitas poner tu key.';
+    else if(m==='off')est.innerHTML='La IA está <b>desactivada</b> para tu cuenta.';
+    else est.innerHTML=(localStorage.getItem('openaiUserKey')?'Usas <b>tu propia API key</b> ✓':'Pon tu <b>API key de OpenAI</b> abajo para activar la IA.');
+  });
+}
+function abrirAdminPanel(){
+  $('adminOverlay').classList.add('show');$('admin-lista').innerHTML='Cargando…';
+  fetch(EmmaSync.urlBase()+'/functions/v1/admin-users',{method:'POST',headers:{apikey:EmmaSync.anonKey(),Authorization:'Bearer '+EmmaSync.accessToken(),'Content-Type':'application/json'},body:JSON.stringify({action:'list'})})
+   .then(r=>r.json()).then(d=>{
+     if(d.error){$('admin-lista').innerHTML='<p class="p-vacio">'+esc(d.error)+'</p>';return;}
+     const modos={compartida:'IA gratis (tu key)',propia:'Su propia key',off:'Sin IA'};
+     $('admin-lista').innerHTML=(d.users||[]).map(u=>`<div style="border:1px solid var(--linea);border-radius:12px;padding:10px 12px;margin-bottom:8px">
+       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+         <div style="min-width:0"><b style="font-size:14px">${esc(u.childName||'(sin nombre)')}</b>${u.is_admin?' <span class="estado e-neu">admin</span>':''}<div class="pi-meta" style="overflow:hidden;text-overflow:ellipsis">${esc(u.email)}</div></div>
+         <div class="pi-meta" style="text-align:right;flex:0 0 auto">${esc(fechaCorta((u.created_at||'').slice(0,10)))}<br>US$${(u.month_spend||0).toFixed(3)}/mes</div></div>
+       <div style="margin-top:8px"><select class="sel-emma" style="min-height:42px;font-size:14px" onchange="adminSetMode('${u.id}',this.value)">
+         ${Object.keys(modos).map(k=>`<option value="${k}"${u.ai_mode===k?' selected':''}>${modos[k]}</option>`).join('')}
+       </select></div></div>`).join('')||'<p class="p-vacio">Sin usuarios.</p>';
+   }).catch(()=>{$('admin-lista').innerHTML='<p class="p-vacio">No se pudo cargar.</p>';});
+}
+function adminSetMode(userId,mode){
+  fetch(EmmaSync.urlBase()+'/functions/v1/admin-users',{method:'POST',headers:{apikey:EmmaSync.anonKey(),Authorization:'Bearer '+EmmaSync.accessToken(),'Content-Type':'application/json'},body:JSON.stringify({action:'setMode',userId:userId,mode:mode})})
+   .then(r=>r.json()).then(d=>toast(d.ok?'Actualizado ✓':(d.error||'No se pudo'))).catch(()=>toast('No se pudo'));
+}
+function renderAjustes(){renderCategorias();renderTodoCategorias();renderCorrecciones();renderIA();if($('temaLabel')){const t=localStorage.getItem('emmaTema')||'auto';$('temaLabel').textContent='Tema: '+({auto:'Automático',claro:'Claro',oscuro:'Oscuro'}[t]);}const meta=EmmaStore.getMeta();const lb=meta.lastBackup;const sb=$('syncBox');
   if(window.EmmaSync&&EmmaSync.configured){if(EmmaSync.isSignedIn()){const ls=meta.lastSync?fechaCorta(meta.lastSync.slice(0,10)):'nunca';
     sb.innerHTML=`<div class="sync-box"><div><b>☁️ ${esc(EmmaSync.statusText())}</b></div><div class="cuenta">Cuenta: ${esc(EmmaSync.currentEmail())} · Última sync: ${ls}</div><div class="fila-btns"><button class="mini" onclick="sincronizarAhora()">🔄 Sincronizar</button><button class="mini" onclick="abrirCambioPwd()">🔑 Contraseña</button><button class="mini del" onclick="cerrarSesion()">Cerrar sesión</button></div></div>`;}
     else sb.innerHTML=`<div class="sync-box"><div><b>☁️ Sincronización disponible</b></div><div class="cuenta">Inicia sesión para sincronizar.</div><button class="mini" onclick="document.getElementById('loginOverlay').classList.add('show')">Iniciar sesión</button></div>`;}

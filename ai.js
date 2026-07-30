@@ -16,11 +16,14 @@ const EmmaAI = (function () {
   function enabled() { return AI_ENABLED && window.EmmaSync && EmmaSync.configured && EmmaSync.isSignedIn(); }
   function endpoint() { return EmmaSync.urlBase() + '/functions/v1/emma-ai'; }
 
+  function userKey() { try { return (localStorage.getItem('openaiUserKey') || '').trim(); } catch (e) { return ''; } }
   async function callAI(action, payload) {
+    const child = (window.EmmaStore && EmmaStore.EMMA) || {};
+    const childName = ((child.nombre || '') + '').trim().split(' ')[0];
     const r = await fetch(endpoint(), {
       method: 'POST',
       headers: { apikey: EmmaSync.anonKey(), Authorization: 'Bearer ' + EmmaSync.accessToken(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, payload })
+      body: JSON.stringify({ action, payload, userKey: userKey(), childName: childName, childGender: child.genero || 'nina' })
     });
     const d = await r.json().catch(() => ({}));
     if (typeof d.month_spend === 'number') EmmaStore.setMeta({ aiMonthSpend: d.month_spend });
