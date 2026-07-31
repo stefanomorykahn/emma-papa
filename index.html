@@ -1796,6 +1796,11 @@ function hacerRegistro(){
   $('signupBtn').disabled=true;$('signupBtn').textContent='Creando…';
   EmmaSync.signUp(email,pass).then(res=>{
     if(res&&res.session){
+      // Cuenta NUEVA: arrancar 100% vacía. El seed (gustos personales de Emma) se carga en init()
+      // ANTES del login cuando no hay childSettings; si no se limpia aquí, se subiría a la cuenta
+      // del usuario nuevo (fuga de datos de Emma). clearAll() borra datos locales + el flag 'emmaSeeded'.
+      // No afecta la cuenta real de Stefano: él entra por login (signIn), no por este registro.
+      try{if(EmmaStore.clearAll)EmmaStore.clearAll();}catch(e){}
       EmmaStore.setChild({nombre:nombre,nacimiento:nac,genero:signupGenero,id:res.user_id,createdAt:new Date().toISOString()});
       aplicarIdentidad();
       try{sessionStorage.removeItem('emmaSkipLogin');}catch(e){}
