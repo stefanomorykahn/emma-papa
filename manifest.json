@@ -1,7 +1,7 @@
 {
-  "name": "Emma & Papá",
-  "short_name": "Emma",
-  "description": "Registro simple y privado de momentos con Emma.",
+  "name": "MiPeque",
+  "short_name": "MiPeque",
+  "description": "Diario simple y privado de los momentos de tu peque.",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-<title>Emma & Papá</title>
-<meta name="description" content="Memoria viva y privada de Emma." />
+<title>MiPeque</title>
+<meta name="description" content="Diario simple y privado de los momentos de tu peque." />
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#c67b6a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Mi Peque" />
+<meta name="apple-mobile-web-app-title" content="MiPeque" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -274,7 +274,7 @@
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="marca"><span class="logo" id="marcaLogo">E</span><span id="marcaTxt">Emma &amp; Papá</span></div>
+    <div class="marca"><span class="logo" id="marcaLogo">M</span><span id="marcaTxt">MiPeque</span></div>
     <div class="estado-guardado" id="estadoGuardado"><span class="punto"></span> Guardado</div>
   </div>
 
@@ -518,7 +518,7 @@
 </div>
 
 <div class="login-overlay" id="loginOverlay">
-  <div class="login-card"><div class="login-logo" id="loginLogo">🍼</div><h2 id="loginTitulo">Emma &amp; Papá</h2>
+  <div class="login-card"><div class="login-logo" id="loginLogo">🍼</div><h2 id="loginTitulo">MiPeque</h2>
     <p class="login-sub" id="loginSub">Inicia sesión para sincronizar entre tus dispositivos.</p>
     <div id="signupExtra" style="display:none;text-align:left">
       <div class="campo"><label>Nombre del niño/a</label><input type="text" id="suNombre" placeholder="Ej. Mateo" /></div>
@@ -1465,7 +1465,7 @@ function actualizarPerfil(btnId){
 
 /* ===== Ajustes / backup ===== */
 function descargar(c,n,t){const b=new Blob([c],{type:t});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
-function backupCompleto(){return{app:'Emma & Papá',version:5,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),emmaTodoItems:EmmaStore.getTodoItems(),emmaTodoCategories:getTodoCats(),emmaProfileCorrections:(window.EmmaProfile&&EmmaProfile.getCorrections)?EmmaProfile.getCorrections():[],exportadoEl:new Date().toISOString()};}
+function backupCompleto(){return{app:'MiPeque',version:5,emmaDiaryEntries:EmmaStore.getEntries(),emmaNotes:EmmaNotes.getNotes(),emmaProfileItems:EmmaStore.getProfileItems(),emmaAnalyses:EmmaStore.getAnalyses(),emmaPhotos:EmmaStore.getPhotos(),emmaExpenses:EmmaStore.getExpenses(),emmaTodoItems:EmmaStore.getTodoItems(),emmaTodoCategories:getTodoCats(),emmaProfileCorrections:(window.EmmaProfile&&EmmaProfile.getCorrections)?EmmaProfile.getCorrections():[],exportadoEl:new Date().toISOString()};}
 function exportarBackup(){descargar(JSON.stringify(backupCompleto(),null,2),'emma-backup-'+hoyISO()+'.json','application/json');EmmaStore.setMeta({lastBackup:new Date().toISOString()});renderAjustes();toast('Backup exportado 📁');}
 function exportarMarkdown(){descargar(EmmaNotes.exportMarkdown()+'\n'+resumenPerfilTexto(),'emma-'+hoyISO()+'.md','text/markdown');toast('Markdown descargado');}
 
@@ -1772,7 +1772,7 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 /* ===== Identidad del niño/a (multiusuario) + registro ===== */
-const BRAND='Mi Peque';  // nombre genérico placeholder (se cambiará luego)
+const BRAND='MiPeque';  // marca del producto
 // Primer nombre del niño/a (para los textos de la app). Ej. "Emma", "Mateo".
 function childName(){var n=(((typeof EmmaStore!=='undefined'&&EmmaStore.EMMA&&EmmaStore.EMMA.nombre)||'')+'').trim().split(' ')[0];return n||'tu peque';}
 function aplicarGenero(){const g=(EmmaStore.EMMA&&EmmaStore.EMMA.genero)||'nina';if(g==='nino')document.documentElement.setAttribute('data-genero','nino');else document.documentElement.removeAttribute('data-genero');}
