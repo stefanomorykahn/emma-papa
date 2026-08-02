@@ -177,18 +177,25 @@ const EmmaPhotos = (function () {
     });
   }
 
+  // Nombre del nino/a (primera palabra) para nombrar carpetas/archivos por usuario.
+  // Para la cuenta de Stefano devuelve "Emma" -> todo queda igual que antes (sin dividir sus fotos).
+  function _childFirst() { try { return String((window.EmmaStore && EmmaStore.getChild && EmmaStore.getChild().nombre) || '').trim().split(/\s+/)[0] || ''; } catch (e) { return ''; } }
+  function _slug(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24); }
+  function _subfolderFotos() { const n = _childFirst(); return n ? ('Fotos de ' + n) : 'Fotos'; }
+
   function nombreArchivo(date) {
     const d = new Date();
     const p = n => String(n).padStart(2, '0');
     const fecha = (date || new Date().toISOString().slice(0, 10)).replace(/-/g, '-');
-    return `emma_${fecha}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.jpg`;
+    const pre = _slug(_childFirst()) || 'foto';
+    return `${pre}_${fecha}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.jpg`;
   }
 
   /* ---------- Subir a Drive (multipart) ---------- */
   /* ---------- Subcarpetas por categoría (Fotos de Emma / Boletas y pagos) ---------- */
   const _subCache = {};
   function _esBoletaMeta(meta) { return ((meta && meta.tags) || []).some(t => /boleta|gasto|pago/i.test(String(t))); }
-  function subfolderPara(meta) { return _esBoletaMeta(meta) ? 'Boletas y pagos' : 'Fotos de Emma'; }
+  function subfolderPara(meta) { return _esBoletaMeta(meta) ? 'Boletas y pagos' : _subfolderFotos(); }
   // Carpeta PROPIA de la app: con drive.file la app sí puede escribir en lo que ella misma crea.
   let appFolderId = ''; try { appFolderId = localStorage.getItem(LS_FOLDER) || ''; } catch (e) {}
   function _saveFolder() { try { localStorage.setItem(LS_FOLDER, appFolderId); } catch (e) {} }
@@ -219,7 +226,7 @@ const EmmaPhotos = (function () {
   async function organizarDrive(onProgress) {
     onProgress = onProgress || function () {};
     await ensureToken();
-    const emmaSub = await ensureSubfolder('Fotos de Emma');
+    const emmaSub = await ensureSubfolder(_subfolderFotos());
     const boletaSub = await ensureSubfolder('Boletas y pagos');
     const fotos = (EmmaStore.getPhotos() || []).filter(p => p.driveFileId && !p.deleted);
     let movidas = 0;
