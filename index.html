@@ -1167,6 +1167,18 @@ function fechaDeFoto(file){
 }
 async function subirFotosPorFecha(){
   if(!(window.EmmaPhotos&&EmmaPhotos.driveEnabled&&EmmaPhotos.driveEnabled())){toast('Conecta Google Drive en Ajustes para subir fotos');return;}
+  // Asegurar conexion ANTES de dejar elegir fotos. Si no, las fotos se encolarian en silencio y
+  // "no subiria nada". ensureToken reconecta solo (usa el refresh_token guardado en el servidor).
+  if(!EmmaPhotos.isConnected()){
+    toast('Conectando con Google Drive…');
+    try{ await EmmaPhotos.ensureToken(); }
+    catch(e){
+      const code=e&&e.code;
+      if(code==='no_login') toast('Inicia sesión para subir fotos.');
+      else toast('Conecta Google Drive en Ajustes para subir fotos.');
+      return;
+    }
+  }
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
   const tags=galSeccion==='boletas'?['boleta','gasto']:['recuerdo'];
   inp.onchange=async e=>{

@@ -137,17 +137,18 @@ const EmmaPhotos = (function () {
   // renueva con el refresh_token guardado (sin popup). Solo pide reconectar si el refresh fue revocado.
   async function ensureToken() {
     if (isConnected()) return token;
-    if (consented) {
-      try {
-        const d = await _fn('refresh');
-        token = d.access_token; tokenExp = Date.now() + ((d.expires_in || 3600) * 1000); _persist();
-        return token;
-      } catch (e) {
-        if (e.code === 'invalid_grant' || e.code === 'no_refresh_token') { consented = false; _persist(); }
-        throw new Error('Conecta Google Drive primero');
-      }
+    // Intenta SIEMPRE el refresco del lado del servidor. El refresh_token se guarda por user_id,
+    // asi que funciona aunque este DOMINIO nunca haya "conectado" (el flag local 'consented' vive en
+    // localStorage por-origen y arranca en false tras mudar de dominio, p.ej. de github.io a emma.xplain.pe).
+    // Solo pide reconectar cuando de verdad no hay refresh_token guardado (usuario nuevo) o fue revocado.
+    try {
+      const d = await _fn('refresh');
+      token = d.access_token; tokenExp = Date.now() + ((d.expires_in || 3600) * 1000); consented = true; _persist();
+      return token;
+    } catch (e) {
+      if (e.code === 'invalid_grant' || e.code === 'no_refresh_token') { consented = false; _persist(); }
+      throw e; // conserva e.code (no_login / no_refresh_token / invalid_grant) para dar el mensaje correcto
     }
-    throw new Error('Conecta Google Drive primero');
   }
   async function fetchEmail() {
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + token } });
@@ -158,14 +159,20 @@ const EmmaPhotos = (function () {
   function optimize(file) {
     return new Promise((res, rej) => {
       const img = new Image(); const url = URL.createObjectURL(file);
+      let done = false;
+      const fin = (fn, a) => { if (!done) { done = true; try { URL.revokeObjectURL(url); } catch (e) {} fn(a); } };
+      // Guarda de tiempo: si el navegador no puede decodificar la imagen (p.ej. HEIC de iPhone en un
+      // navegador sin soporte) puede que NO dispare onload NI onerror -> sin esto, el lote se congela.
+      const to = setTimeout(() => fin(rej, new Error('La foto no se pudo leer (formato no soportado)')), 25000);
       img.onload = () => {
+        clearTimeout(to);
         let w = img.width, h = img.height;
         if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
         const c = document.createElement('canvas'); c.width = w; c.height = h;
         c.getContext('2d').drawImage(img, 0, 0, w, h);
-        c.toBlob(b => { URL.revokeObjectURL(url); res({ blob: b, width: w, height: h }); }, 'image/jpeg', 0.85);
+        c.toBlob(b => { fin(res, { blob: b, width: w, height: h }); }, 'image/jpeg', 0.85);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Imagen no válida')); };
+      img.onerror = () => { clearTimeout(to); fin(rej, new Error('Imagen no válida')); };
       img.src = url;
     });
   }
