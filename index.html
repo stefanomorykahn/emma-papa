@@ -231,6 +231,19 @@
   .cal-day.today{outline:2px solid var(--acento);outline-offset:-2px;}
   .cal-count{position:absolute;top:3px;right:5px;font-size:9px;font-weight:700;color:var(--acento);}
   .cal-day.sel .cal-count{color:#fff;}
+  /* Calendario en móvil: aprovecha el ancho, celdas cómodas de tocar y badge de fotos legible. */
+  @media (max-width:480px){
+    .cal{padding:12px 8px 9px;border-radius:13px;}
+    .cal-head{margin-bottom:8px;}
+    .cal-head b{font-size:15px;}
+    .cal-nav{width:34px;height:34px;font-size:18px;}
+    .cal-grid{gap:4px;}
+    .cal-dow{font-size:11px;padding-bottom:3px;}
+    .cal-day{font-size:15px;border-radius:11px;}
+    .cal-day.has-photos{font-weight:600;}
+    .cal-count{top:3px;right:4px;font-size:10px;padding:0 3px;border-radius:8px;background:var(--acento);color:#fff;line-height:1.35;}
+    .cal-day.sel .cal-count{background:#fff;color:var(--acento);}
+  }
   .foto-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .foto-prev{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--linea);}
   .foto-prev img{width:100%;height:100%;object-fit:cover;} .foto-prev .rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:999px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;}
@@ -1129,28 +1142,46 @@ function _statsFechas(){const map={};
   (EmmaStore.getEntries()||[]).forEach(e=>{if(e.deleted||!e.date)return;(map[e.date]=map[e.date]||{p:0,v:false}).v=true;});
   (EmmaStore.getPhotos()||[]).forEach(p=>{if(p.deleted||!p.date||esBoleta(p))return;const s=(map[p.date]=map[p.date]||{p:0,v:false});s.p++;s.v=true;});
   return map;}
-// Lee la fecha en que se TOMÓ la foto: EXIF DateTimeOriginal (JPEG); si no, la fecha del archivo.
-function exifFecha(buf){
-  try{const dv=new DataView(buf);const len=dv.byteLength;if(len<4||dv.getUint16(0)!==0xFFD8)return null; // no es JPEG
+// Lee la fecha en que se TOMÓ la foto (EXIF DateTimeOriginal). Soporta JPEG y HEIC (iPhone);
+// si no hay EXIF, cae a la fecha del archivo (lastModified).
+// Parsea un bloque TIFF y devuelve YYYY-MM-DD de DateTimeOriginal (0x9003) o DateTime (0x0132).
+function _tiffDate(dv,tiff,len){
+  try{
+    if(tiff+8>len)return null;
+    const bo=dv.getUint16(tiff);const little=bo===0x4949;
+    if(!little&&bo!==0x4D4D)return null; // ni "II" ni "MM" -> no es un header TIFF
+    const g16=o=>dv.getUint16(o,little),g32=o=>dv.getUint32(o,little);
+    const inIFD=(ifd,tag)=>{if(ifd<0||ifd+2>len)return -1;const n=g16(ifd);for(let i=0;i<n;i++){const e=ifd+2+i*12;if(e+12>len)break;if(g16(e)===tag)return e;}return -1;};
+    const ifd0=tiff+g32(tiff+4);let dOff=-1;
+    const ep=inIFD(ifd0,0x8769); // puntero al Exif IFD
+    if(ep>=0){const ex=tiff+g32(ep+8);const dto=inIFD(ex,0x9003);if(dto>=0)dOff=tiff+g32(dto+8);}
+    if(dOff<0){const dt=inIFD(ifd0,0x0132);if(dt>=0)dOff=tiff+g32(dt+8);}
+    if(dOff<0||dOff+10>len)return null;
+    let s='';for(let i=0;i<10;i++)s+=String.fromCharCode(dv.getUint8(dOff+i));
+    const mm=s.match(/^(\d{4}):(\d{2}):(\d{2})/);return mm?mm[1]+'-'+mm[2]+'-'+mm[3]:null;
+  }catch(e){return null;}
+}
+function exifFecha(buf){ // JPEG: camina los marcadores hasta APP1 (Exif)
+  try{const dv=new DataView(buf);const len=dv.byteLength;if(len<4||dv.getUint16(0)!==0xFFD8)return null;
     let off=2;
     while(off+4<len){
-      if(dv.getUint8(off)!==0xFF)return null;
+      if(dv.getUint8(off)!==0xFF)break;
       const marker=dv.getUint16(off);
-      if(marker===0xFFE1){ // APP1 (Exif)
-        const app1=off+4;
-        if(app1+6>len||dv.getUint32(app1)!==0x45786966)return null; // "Exif"
-        const tiff=app1+6;const little=dv.getUint16(tiff)===0x4949;
-        const g16=o=>dv.getUint16(o,little),g32=o=>dv.getUint32(o,little);
-        const inIFD=(ifd,tag)=>{if(ifd+2>len)return -1;const n=g16(ifd);for(let i=0;i<n;i++){const e=ifd+2+i*12;if(e+12>len)break;if(g16(e)===tag)return e;}return -1;};
-        const ifd0=tiff+g32(tiff+4);let dOff=-1;
-        const ep=inIFD(ifd0,0x8769); // puntero a Exif IFD
-        if(ep>=0){const ex=tiff+g32(ep+8);const dto=inIFD(ex,0x9003);if(dto>=0)dOff=tiff+g32(dto+8);}
-        if(dOff<0){const dt=inIFD(ifd0,0x0132);if(dt>=0)dOff=tiff+g32(dt+8);}
-        if(dOff<0||dOff+10>len)return null;
-        let s='';for(let i=0;i<10;i++)s+=String.fromCharCode(dv.getUint8(dOff+i));
-        const mm=s.match(/^(\d{4}):(\d{2}):(\d{2})/);return mm?mm[1]+'-'+mm[2]+'-'+mm[3]:null;
+      if(marker===0xFFE1){const app1=off+4;
+        if(app1+6<=len&&dv.getUint32(app1)===0x45786966){const d=_tiffDate(dv,app1+6,len);if(d)return d;}
       }
-      off+=2+dv.getUint16(off+2); // saltar al siguiente marker
+      if(marker===0xFFDA)break; // empiezan los datos de imagen: ya no hay EXIF
+      off+=2+dv.getUint16(off+2);
+    }
+  }catch(e){}
+  return null;
+}
+function exifFechaScan(buf){ // HEIC y otros: busca la firma "Exif\0\0" y parsea el TIFF que sigue
+  try{const dv=new DataView(buf),len=dv.byteLength;
+    for(let i=0;i+8<len;i++){
+      if(dv.getUint8(i)===0x45&&dv.getUint8(i+1)===0x78&&dv.getUint8(i+2)===0x69&&dv.getUint8(i+3)===0x66&&dv.getUint8(i+4)===0&&dv.getUint8(i+5)===0){
+        const d=_tiffDate(dv,i+6,len);if(d)return d;
+      }
     }
   }catch(e){}
   return null;
@@ -1158,12 +1189,30 @@ function exifFecha(buf){
 function fechaDeFoto(file){
   return new Promise(res=>{
     const fb=()=>{const d=new Date(file.lastModified||Date.now());res(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));};
-    const esJpg=/jpe?g/i.test(file.type||'')||/\.jpe?g$/i.test(file.name||'');
-    if(!esJpg)return fb();
     const r=new FileReader();r.onerror=fb;
-    r.onload=()=>{const iso=exifFecha(r.result);iso?res(iso):fb();};
-    try{r.readAsArrayBuffer(file.slice(0,131072));}catch(e){fb();} // 128KB bastan para el EXIF
+    r.onload=()=>{let iso=null;try{iso=exifFecha(r.result)||exifFechaScan(r.result);}catch(e){}iso?res(iso):fb();};
+    // 512KB cubren el EXIF de JPEG y HEIC (iPhone). Si no aparece, cae a la fecha del archivo.
+    try{r.readAsArrayBuffer(file.slice(0,524288));}catch(e){fb();}
   });
+}
+// Barra de progreso (fija abajo) para subidas de muchas fotos.
+function _subirProgAbrir(){
+  let o=document.getElementById('subir-prog');
+  if(!o){o=document.createElement('div');o.id='subir-prog';
+    o.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:var(--panel,#fff);border-top:1px solid var(--linea,#eee);box-shadow:0 -6px 18px rgba(0,0,0,.10);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:14px;color:var(--texto,#333)';
+    o.innerHTML='<div id="subir-prog-txt" style="margin-bottom:8px;font-weight:600">Preparando…</div><div style="height:8px;background:var(--crema,#eee);border-radius:99px;overflow:hidden"><div id="subir-prog-bar" style="height:100%;width:0%;background:var(--acento,#c67b6a);border-radius:99px;transition:width .2s"></div></div>';
+    document.body.appendChild(o);}
+  o.style.display='block';return o;
+}
+function _subirProgUpd(i,n){
+  const t=document.getElementById('subir-prog-txt'),b=document.getElementById('subir-prog-bar');
+  if(t)t.textContent='Subiendo fotos… '+(i+1)+' de '+n;
+  if(b)b.style.width=Math.round(i/n*100)+'%';
+}
+function _subirProgCerrar(){
+  const b=document.getElementById('subir-prog-bar'),o=document.getElementById('subir-prog');
+  if(b)b.style.width='100%';
+  setTimeout(()=>{if(o)o.style.display='none';},450);
 }
 async function subirFotosPorFecha(){
   if(!(window.EmmaPhotos&&EmmaPhotos.driveEnabled&&EmmaPhotos.driveEnabled())){toast('Conecta Google Drive en Ajustes para subir fotos');return;}
@@ -1184,12 +1233,17 @@ async function subirFotosPorFecha(){
   inp.onchange=async e=>{
     const files=[...e.target.files];if(!files.length)return;
     let ok=0,enc=0;
+    _subirProgAbrir();
     for(let i=0;i<files.length;i++){
-      const f=files[i];toast('Subiendo '+(i+1)+'/'+files.length+'…');
-      const fecha=await fechaDeFoto(f);
+      const f=files[i];_subirProgUpd(i,files.length);
+      let fecha;try{fecha=await fechaDeFoto(f);}catch(_){fecha=hoyISO();}
       try{const r=await EmmaPhotos.addFromFile(f,{date:fecha,tags:tags},()=>{});if(r&&r.queued)enc++;else ok++;}
       catch(err){enc++;}
+      // Ceder el hilo entre fotos: la barra repinta y el navegador libera memoria
+      // (evita el "congelado" al subir muchas fotos de golpe).
+      await new Promise(r=>setTimeout(r,files.length>15?35:0));
     }
+    _subirProgCerrar();
     let msg=ok?(ok+' foto'+(ok!==1?'s':'')+' subida'+(ok!==1?'s':'')+' ✓'):'';
     if(enc)msg+=(msg?' · ':'')+enc+' se subirá'+(enc!==1?'n':'')+' luego';
     toast(msg||'Sin cambios');

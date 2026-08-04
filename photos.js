@@ -170,7 +170,7 @@ const EmmaPhotos = (function () {
         if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
         const c = document.createElement('canvas'); c.width = w; c.height = h;
         c.getContext('2d').drawImage(img, 0, 0, w, h);
-        c.toBlob(b => { fin(res, { blob: b, width: w, height: h }); }, 'image/jpeg', 0.85);
+        c.toBlob(b => { try { img.src = ''; c.width = c.height = 0; } catch (e) {} fin(res, { blob: b, width: w, height: h }); }, 'image/jpeg', 0.85);
       };
       img.onerror = () => { clearTimeout(to); fin(rej, new Error('Imagen no válida')); };
       img.src = url;
