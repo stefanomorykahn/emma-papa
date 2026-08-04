@@ -1236,7 +1236,7 @@ async function subirFotosPorFecha(){
     _subirProgAbrir();_subirProgUpd(0,total);
     // Subir VARIAS a la vez (en paralelo con límite) => mucho más rápido con muchas fotos.
     // El límite acota la memoria (solo N imágenes decodificadas a la vez), para no re-congelar.
-    const CONC=Math.min(total>8?4:1,total);
+    const CONC=Math.min(total>4?6:1,total);
     let idx=0;
     async function worker(){
       while(idx<total){
