@@ -1300,8 +1300,19 @@ function renderGaleria(){
   grid.innerHTML=banner+'<div class="gal-grid">'+fotos.map(p=>`<div class="gal-card" onclick="openSheet('${p.id}')">
     <div class="gal-thumb" data-thumb="${p.id}">📷${p.isFavorite?'<span class="gal-fav">⭐</span>':''}</div>
     <div class="gal-info"><div class="gt">${esc(p.title||'Foto')}</div><div class="gd">${fechaCorta(p.date)}${(p.tags&&p.tags[0])?' · '+esc(p.tags[0]):''}</div></div></div>`).join('')+'</div>';
-  // cargar thumbnails (en memoria) si Drive está conectado
-  if(window.EmmaPhotos)fotos.forEach(p=>{EmmaPhotos.getThumb(p).then(url=>{if(!url)return;const el=document.querySelector('[data-thumb="'+p.id+'"]');if(el)el.innerHTML='<img src="'+url+'">'+(p.isFavorite?'<span class="gal-fav">⭐</span>':'');});});
+  // Miniaturas con CARGA PEREZOSA: cada foto pide su miniatura a Drive solo cuando entra en pantalla
+  // (antes se bajaban TODAS de golpe a tamaño completo → lento con muchas fotos). Un observer por render.
+  if(window._galThumbIO){try{window._galThumbIO.disconnect();}catch(e){}}
+  if(window.EmmaPhotos){
+    const _byId={};fotos.forEach(p=>{_byId[p.id]=p;});
+    const _cargar=el=>{const p=_byId[el.getAttribute('data-thumb')];if(!p)return;EmmaPhotos.getThumb(p).then(url=>{if(!url)return;const cur=document.querySelector('[data-thumb="'+p.id+'"]');if(cur)cur.innerHTML='<img src="'+url+'" loading="lazy" decoding="async">'+(p.isFavorite?'<span class="gal-fav">⭐</span>':'');});};
+    if('IntersectionObserver' in window){
+      window._galThumbIO=new IntersectionObserver((ents,obs)=>{ents.forEach(en=>{if(en.isIntersecting){obs.unobserve(en.target);_cargar(en.target);}});},{rootMargin:'300px'});
+      document.querySelectorAll('#g-grid [data-thumb]').forEach(el=>window._galThumbIO.observe(el));
+    }else{ // respaldo si el navegador no soporta IntersectionObserver
+      document.querySelectorAll('#g-grid [data-thumb]').forEach(_cargar);
+    }
+  }
 }
 function setGalFiltro(k){galFiltro=k;renderGaleria();}
 function agregarFotoLibre(){
@@ -1332,7 +1343,7 @@ function openSheet(id){
     </div>
     <button class="mini" style="margin-top:12px" onclick="cerrarSheet()">Cerrar</button>`;
   $('photoSheet').classList.add('show');
-  if(window.EmmaPhotos)EmmaPhotos.getThumb(p).then(url=>{if(url){const el=$('sheetImg');if(el)el.outerHTML='<img class="sheet-img" src="'+url+'">';}});
+  if(window.EmmaPhotos)EmmaPhotos.getThumb(p,1200).then(url=>{if(url){const el=$('sheetImg');if(el)el.outerHTML='<img class="sheet-img" src="'+url+'">';}});
 }
 function cerrarSheet(){$('photoSheet').classList.remove('show');}
 function toggleFav(id){const p=EmmaStore.getPhotos().find(x=>x.id===id);if(!p)return;EmmaStore.updatePhoto(id,{isFavorite:!p.isFavorite});openSheet(id);renderGaleria();}

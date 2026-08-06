@@ -390,18 +390,35 @@ const EmmaPhotos = (function () {
   }
 
   // Obtiene una miniatura mostrable (objectURL en memoria) o '' si no se puede
-  async function getThumb(photo) {
+  async function getThumb(photo, size) {
+    size = size || 400;                       // grid = pequena (400); detalle de una foto = grande (~1200)
     const id = photo.driveFileId;
     if (!id) return '';
-    if (thumbCache[id]) return thumbCache[id];
+    const ck = id + '@' + size;
+    if (thumbCache[ck]) return thumbCache[ck];
     if (!CLIENT_ID) return '';
     try { await ensureToken(); } catch (e) { return ''; } // renueva en silencio si hace falta
+    // 1) Preferir la MINIATURA de Drive (thumbnailLink, ~15-30 KB) en vez de bajar la foto completa.
     try {
-      const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+      const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?fields=thumbnailLink',
         { headers: { Authorization: 'Bearer ' + token } });
-      if (!r.ok) return '';
-      const blob = await r.blob();
-      const u = URL.createObjectURL(blob); thumbCache[id] = u; return u;
+      if (r.ok) {
+        const d = await r.json();
+        let link = d.thumbnailLink || '';
+        if (link) {
+          // Ajustar el tamano de la miniatura que sirve Drive (por defecto ~s220).
+          link = link.replace(/=s\d+$/, '=s' + size).replace(/=w\d+-h\d+$/, '=s' + size);
+          thumbCache[ck] = link; return link;
+        }
+      }
+    } catch (e) {}
+    // 2) Fallback (miniatura aun no generada por Drive): baja el archivo. Mas pesado, pero poco frecuente.
+    try {
+      const r2 = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+        { headers: { Authorization: 'Bearer ' + token } });
+      if (!r2.ok) return '';
+      const blob = await r2.blob();
+      const u = URL.createObjectURL(blob); thumbCache[ck] = u; return u;
     } catch (e) { return ''; }
   }
 
